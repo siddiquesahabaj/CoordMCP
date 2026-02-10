@@ -1,0 +1,3 @@
+"""
+CoordMCP test suite.
+"""

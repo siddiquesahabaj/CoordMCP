@@ -10,13 +10,9 @@ from coordmcp.storage.base import StorageBackend
 from coordmcp.context.state import LockInfo
 from coordmcp.config import get_config
 from coordmcp.logger import get_logger
+from coordmcp.errors import FileLockError
 
 logger = get_logger("context.file_tracker")
-
-
-class FileLockError(Exception):
-    """Exception raised when a file is already locked by another agent."""
-    pass
 
 
 class FileTracker:

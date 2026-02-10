@@ -8,9 +8,10 @@ from uuid import uuid4
 
 from coordmcp.core.server import get_storage
 from coordmcp.context.manager import ContextManager
-from coordmcp.context.file_tracker import FileTracker, FileLockError
+from coordmcp.context.file_tracker import FileTracker
 from coordmcp.memory.json_store import ProjectMemoryStore
 from coordmcp.logger import get_logger
+from coordmcp.errors import FileLockError
 
 logger = get_logger("tools.context")
 

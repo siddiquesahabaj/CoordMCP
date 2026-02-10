@@ -31,11 +31,10 @@ help:
 
 # Setup
 install:
-	pip install -r requirements.txt
+	pip install -e .
 
 dev:
-	pip install -r requirements.txt
-	pip install -e .
+	pip install -e ".[dev]"
 
 # Testing
 test: test-all
@@ -50,14 +49,14 @@ test-integration:
 	python -m pytest src/tests/integration/ -v
 
 # Individual test suites
-test-memory:
-	python src/tests/test_memory_system.py
+test-unit-memory:
+	python -m pytest src/tests/unit/test_memory/ -v
 
-test-context:
-	python src/tests/test_context_system.py
+test-unit-context:
+	python -m pytest src/tests/unit/test_context/ -v
 
-test-architecture:
-	python src/tests/test_architecture_system.py
+test-unit-architecture:
+	python -m pytest src/tests/unit/test_architecture/ -v
 
 test-full:
 	python src/tests/integration/test_full_integration.py
@@ -70,11 +69,12 @@ run-dev:
 	COORDMCP_LOG_LEVEL=DEBUG python -m coordmcp.main
 
 clean:
-	find . -type d -name __pycache__ -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
-	find . -type f -name "*.pyo" -delete
-	find . -type f -name "*.pyd" -delete
+	# Clean Python cache files
+	python -c "import shutil, pathlib, sys; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__') if p.is_dir()]; [p.unlink() for p in pathlib.Path('.').rglob('*.py[co]') if p.is_file()]; sys.exit(0)" 2>/dev/null || true
+	# Clean build artifacts
 	rm -rf build/ dist/ *.egg-info/
+	# Clean pytest cache
+	rm -rf .pytest_cache/ src/tests/.pytest_cache/
 
 # Examples
 example-basic:

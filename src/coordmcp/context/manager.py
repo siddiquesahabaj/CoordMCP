@@ -13,13 +13,9 @@ from coordmcp.context.state import (
 )
 from coordmcp.context.file_tracker import FileTracker
 from coordmcp.logger import get_logger
+from coordmcp.errors import AgentNotFoundError
 
 logger = get_logger("context.manager")
-
-
-class AgentNotFoundError(Exception):
-    """Exception raised when an agent is not found."""
-    pass
 
 
 class ContextManager:

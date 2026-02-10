@@ -1,1 +1,3 @@
-"""Unit tests for CoordMCP modules"""
+"""
+Unit tests for CoordMCP components.
+"""
