@@ -1,0 +1,125 @@
+# CoordMCP Documentation
+
+Welcome to the CoordMCP documentation! This is your comprehensive guide to using and extending CoordMCP.
+
+## 📚 Documentation Overview
+
+### 🚀 Getting Started
+New to CoordMCP? Start here!
+
+| Document | Description | Time |
+|----------|-------------|------|
+| **[Getting Started](GETTING_STARTED.md)** | 5-minute quick start guide | 5 min |
+| **[Installation](INSTALLATION.md)** | Detailed installation instructions | 15 min |
+| **[Configuration](CONFIGURATION.md)** | Environment variables and settings | 10 min |
+
+### 🔧 User Guides
+Learn how to use CoordMCP effectively.
+
+| Document | Description |
+|----------|-------------|
+| **[API Reference](API_REFERENCE.md)** | Complete reference for all 29 tools and 14 resources |
+| **[Data Models](DATA_MODELS.md)** | Understanding data structures and storage |
+| **[Troubleshooting](TROUBLESHOOTING.md)** | Common issues and solutions |
+| **[Extending](EXTENDING.md)** | How to extend CoordMCP with custom tools |
+
+### 🤖 Agent Integrations
+Setup guides for different coding agents.
+
+| Agent | Description |
+|-------|-------------|
+| **[OpenCode](INTEGRATIONS/opencode.md)** | Integration with OpenCode |
+| **[Cursor](INTEGRATIONS/cursor.md)** | Integration with Cursor IDE |
+| **[Claude Code](INTEGRATIONS/claude-code.md)** | Integration with Claude Code |
+| **[Windsurf](INTEGRATIONS/windsurf.md)** | Integration with Windsurf |
+
+### 📝 Examples
+Step-by-step walkthroughs with code.
+
+| Example | Description | Complexity |
+|---------|-------------|------------|
+| **[Basic Project Setup](examples/basic-project-setup.md)** | Create your first project | ⭐ Easy |
+| **[Architecture Recommendation](examples/architecture-recommendation.md)** | Get architectural guidance | ⭐⭐ Medium |
+| **[Context Switching](examples/context-switching.md)** | Work on multiple tasks | ⭐⭐ Medium |
+| **[Multi-Agent Workflow](examples/multi-agent-workflow.md)** | Coordinate multiple agents | ⭐⭐⭐ Advanced |
+
+### 🛠️ Developer Documentation
+For developers contributing to or extending CoordMCP.
+
+| Document | Description |
+|----------|-------------|
+| **[Architecture](DEVELOPMENT/ARCHITECTURE.md)** | System design, patterns, and ADRs |
+| **[Implementation Guide](DEVELOPMENT/IMPLEMENTATION_GUIDE.md)** | Detailed implementation specifications |
+| **[Code Examples](DEVELOPMENT/CODE_EXAMPLES.md)** | Common patterns and templates |
+| **[Testing](DEVELOPMENT/TESTING.md)** | Testing strategy and guidelines |
+
+### 📋 Project Information
+
+- **[Changelog](../CHANGELOG.md)** - Version history and release notes
+- **[Contributing](../CONTRIBUTING.md)** - How to contribute to the project
+- **[Security](../SECURITY.md)** - Security policy and reporting
+
+## 🎯 Quick Navigation
+
+### By Use Case
+
+**I want to...** | **Go to...**
+---|---
+Get started quickly | [Getting Started](GETTING_STARTED.md)
+Set up with my agent | [Integrations](#-agent-integrations)
+Learn the API | [API Reference](API_REFERENCE.md)
+Understand the data | [Data Models](DATA_MODELS.md)
+Fix a problem | [Troubleshooting](TROUBLESHOOTING.md)
+Add custom functionality | [Extending](EXTENDING.md)
+Understand the architecture | [Architecture](DEVELOPMENT/ARCHITECTURE.md)
+Contribute code | [Contributing](../CONTRIBUTING.md)
+
+### By Role
+
+**I'm a...** | **Start with...**
+---|---
+New user | [Getting Started](GETTING_STARTED.md)
+Developer using CoordMCP | [API Reference](API_REFERENCE.md)
+Agent configuration | [Integrations](#-agent-integrations)
+Contributor | [Contributing](../CONTRIBUTING.md) → [Architecture](DEVELOPMENT/ARCHITECTURE.md)
+System architect | [Architecture](DEVELOPMENT/ARCHITECTURE.md) → [Data Models](DATA_MODELS.md)
+
+## 📊 Documentation Stats
+
+- **29 Tools** documented
+- **14 Resources** documented
+- **9 Design Patterns** catalogued
+- **4 Integration Guides** available
+- **4 Example Walkthroughs** with code
+
+## 🔍 Search Tips
+
+- Use the **API Reference** for tool syntax and parameters
+- Check **Troubleshooting** for error messages
+- Browse **Examples** for usage patterns
+- Review **Data Models** for understanding storage
+
+## 💡 Getting Help
+
+- 📧 **Email**: support@coordmcp.dev
+- 💬 **Discord**: [Join our community](https://discord.gg/coordmcp)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/yourusername/coordmcp/issues)
+
+## 🚀 Quick Start
+
+Don't want to read? Try these quick commands in your agent:
+
+```python
+# Create a project
+await create_project(project_name="My Project", description="My first project")
+
+# Register yourself
+await register_agent(agent_name="MyAgent", agent_type="opencode", capabilities=["python"])
+
+# Save a decision
+await save_decision(project_id="proj-xxx", title="Use FastAPI", description="Async framework", rationale="Performance")
+```
+
+---
+
+**Ready to dive in?** Start with [Getting Started](GETTING_STARTED.md) or jump to [Installation](INSTALLATION.md)!

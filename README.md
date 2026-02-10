@@ -26,9 +26,6 @@ git clone https://github.com/yourusername/coordmcp.git
 cd coordmcp
 
 # Install dependencies
-pip install -r requirements.txt
-
-# Or install in development mode
 pip install -e .
 ```
 
@@ -41,23 +38,34 @@ python -m coordmcp.main
 
 The server will start and listen for MCP connections.
 
-### Using with Opencode
-
-Add CoordMCP to your Opencode configuration (`~/.opencode/config.toml`):
-
-```toml
-[[mcp_servers]]
-name = "coordmcp"
-command = "python"
-args = ["-m", "coordmcp.main"]
-```
-
 ## 📖 Documentation
 
-- **[SETUP.md](docs/SETUP.md)** - Detailed installation and configuration
-- **[API_REFERENCE.md](docs/API_REFERENCE.md)** - Complete tool and resource reference
-- **[USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md)** - Common usage patterns
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and design
+### User Documentation
+- **[Getting Started](docs/GETTING_STARTED.md)** - 5-minute quick start
+- **[Installation](docs/INSTALLATION.md)** - Detailed setup guide
+- **[Configuration](docs/CONFIGURATION.md)** - Environment variables and settings
+- **[API Reference](docs/API_REFERENCE.md)** - Complete tool and resource reference
+- **[Data Models](docs/DATA_MODELS.md)** - Data structures and storage
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+
+### Agent Integrations
+- **[OpenCode](docs/INTEGRATIONS/opencode.md)** - Setup with OpenCode
+- **[Cursor](docs/INTEGRATIONS/cursor.md)** - Setup with Cursor IDE
+- **[Claude Code](docs/INTEGRATIONS/claude-code.md)** - Setup with Claude Code
+- **[Windsurf](docs/INTEGRATIONS/windsurf.md)** - Setup with Windsurf
+
+### Developer Documentation
+- **[Architecture](docs/DEVELOPMENT/ARCHITECTURE.md)** - System design and patterns
+- **[Implementation Guide](docs/DEVELOPMENT/IMPLEMENTATION_GUIDE.md)** - Development details
+- **[Code Examples](docs/DEVELOPMENT/CODE_EXAMPLES.md)** - Patterns and templates
+- **[Testing](docs/DEVELOPMENT/TESTING.md)** - Testing strategy and guides
+- **[Contributing](CONTRIBUTING.md)** - How to contribute
+
+### Examples
+- **[Basic Project Setup](docs/examples/basic-project-setup.md)** - Your first project
+- **[Architecture Recommendation](docs/examples/architecture-recommendation.md)** - Get guidance
+- **[Context Switching](docs/examples/context-switching.md)** - Work on multiple tasks
+- **[Multi-Agent Workflow](docs/examples/multi-agent-workflow.md)** - Coordinate agents
 
 ## 🛠️ Available Tools
 
@@ -96,144 +104,36 @@ args = ["-m", "coordmcp.main"]
 - `get_design_patterns` - View available patterns
 - `update_architecture` - Update after implementation
 
-## 📚 Resources
-
-### Project Resources
-- `project://{project_id}` - Project overview
-- `project://{project_id}/decisions` - All decisions
-- `project://{project_id}/tech-stack` - Tech stack
-- `project://{project_id}/architecture` - Architecture overview
-- `project://{project_id}/recent-changes` - Recent changes
-- `project://{project_id}/modules` - Module list
-
-### Agent Resources
-- `agent://{agent_id}` - Agent profile
-- `agent://{agent_id}/context` - Current context
-- `agent://{agent_id}/locked-files` - Locked files
-- `agent://{agent_id}/session-log` - Session log
-- `agent://registry` - All registered agents
-
-### Architecture Resources
-- `design-patterns://list` - All design patterns
-- `design-patterns://{pattern_name}` - Pattern details
-
-## 💡 Usage Examples
-
-### Basic Project Setup
+## 💡 Quick Example
 
 ```python
 # Create a project
-await create_project(
+result = await create_project(
     project_name="My API",
     description="RESTful API service"
 )
 
 # Record a decision
 await save_decision(
-    project_id="proj-123",
+    project_id=result["project_id"],
     title="Use FastAPI",
     description="FastAPI for high performance",
     rationale="Async support, automatic docs"
 )
 
-# Update tech stack
-await update_tech_stack(
-    project_id="proj-123",
-    category="backend",
-    technology="FastAPI",
-    version="0.104.0"
-)
-```
-
-### Multi-Agent Coordination
-
-```python
-# Register agents
-agent1 = await register_agent(
-    agent_name="FrontendDev",
-    agent_type="opencode",
-    capabilities=["react", "typescript"]
-)
-
-agent2 = await register_agent(
+# Register yourself as an agent
+agent = await register_agent(
     agent_name="BackendDev",
-    agent_type="cursor",
+    agent_type="opencode",
     capabilities=["python", "fastapi"]
 )
 
-# Start contexts
+# Start working
 await start_context(
-    agent_id=agent1["agent_id"],
-    project_id="proj-123",
-    objective="Build UI components"
+    agent_id=agent["agent_id"],
+    project_id=result["project_id"],
+    objective="Implement authentication"
 )
-
-# Lock files
-await lock_files(
-    agent_id=agent1["agent_id"],
-    project_id="proj-123",
-    files=["src/components/App.tsx"],
-    reason="Working on app component"
-)
-```
-
-### Architecture Recommendations
-
-```python
-# Analyze current architecture
-analysis = await analyze_architecture(project_id="proj-123")
-
-# Get recommendation
-recommendation = await get_architecture_recommendation(
-    project_id="proj-123",
-    feature_description="Add user authentication",
-    constraints=["use existing database"]
-)
-
-# Validate code structure
-validation = await validate_code_structure(
-    project_id="proj-123",
-    file_path="src/auth/service.py",
-    code_structure={"classes": ["AuthService"]}
-)
-```
-
-## 📁 Project Structure
-
-```
-coordmcp/
-├── src/
-│   └── coordmcp/
-│       ├── main.py              # Server entry point
-│       ├── config.py            # Configuration
-│       ├── logger.py            # Logging setup
-│       ├── core/
-│       │   ├── server.py        # FastMCP server
-│       │   └── tool_manager.py  # Tool registration
-│       ├── memory/
-│       │   ├── models.py        # Data models
-│       │   └── json_store.py    # Memory storage
-│       ├── context/
-│       │   ├── manager.py       # Context management
-│       │   ├── file_tracker.py  # File locking
-│       │   └── state.py         # Context state
-│       ├── architecture/
-│       │   ├── analyzer.py      # Architecture analysis
-│       │   ├── recommender.py   # Recommendations
-│       │   ├── validators.py    # Code validation
-│       │   └── patterns.py      # Design patterns
-│       ├── tools/
-│       │   ├── memory_tools.py  # Memory tools
-│       │   ├── context_tools.py # Context tools
-│       │   └── architecture_tools.py
-│       └── resources/
-│           ├── project_resources.py
-│           ├── agent_resources.py
-│           └── architecture_resources.py
-├── examples/                    # Usage examples
-├── tests/                       # Test suite
-├── dev_docs/                    # Development docs
-└── docs/                        # User documentation
 ```
 
 ## 🧪 Testing
@@ -242,30 +142,30 @@ Run the test suite:
 
 ```bash
 # Run all tests
-python -m pytest tests/
+make test-all
 
-# Run specific test
-python src/tests/test_memory_system.py
-python src/tests/test_context_system.py
-python src/tests/test_architecture_system.py
-
-# Run integration test
-python src/tests/integration/test_full_integration.py
+# Or with pytest directly
+python -m pytest src/tests/ -v
 ```
 
-## 🔧 Configuration
+## 📁 Project Structure
 
-CoordMCP can be configured via environment variables or a `.env` file:
-
-```bash
-# Data directory (default: ~/.coordmcp/data)
-COORDMCP_DATA_DIR=/path/to/data
-
-# Log level (default: INFO)
-COORDMCP_LOG_LEVEL=DEBUG
-
-# Lock timeout in hours (default: 24)
-COORDMCP_LOCK_TIMEOUT_HOURS=24
+```
+coordmcp/
+├── src/coordmcp/              # Main source code
+│   ├── core/                  # Server and tool management
+│   ├── memory/                # Long-term memory system
+│   ├── context/               # Context and file locking
+│   ├── architecture/          # Architecture tools
+│   ├── tools/                 # MCP tool implementations
+│   ├── resources/             # MCP resource implementations
+│   └── storage/               # Storage backends
+├── docs/                      # Documentation
+│   ├── INTEGRATIONS/          # Agent integration guides
+│   ├── DEVELOPMENT/           # Developer documentation
+│   └── examples/              # Example walkthroughs
+├── src/tests/                 # Test suite
+└── examples/                  # Runnable example scripts
 ```
 
 ## 🎯 Use Cases
@@ -276,9 +176,16 @@ COORDMCP_LOCK_TIMEOUT_HOURS=24
 - **Change Tracking**: Maintain audit trail of modifications
 - **File Coordination**: Prevent conflicts in multi-agent scenarios
 
+## 📊 Stats
+
+- **29 Tools** for memory, context, and architecture
+- **14 Resources** for querying project and agent data
+- **9 Design Patterns** built-in
+- **0 LLM Calls** required (rule-based recommendations)
+
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](docs/CONTRIBUTING.md) for details.
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## 📄 License
 
