@@ -6,6 +6,7 @@ from fastmcp import FastMCP
 
 from coordmcp.tools import memory_tools
 from coordmcp.tools import context_tools
+from coordmcp.tools import architecture_tools
 from coordmcp.logger import get_logger
 
 logger = get_logger("tools")
@@ -276,6 +277,57 @@ def register_all_tools(server: FastMCP) -> FastMCP:
     async def get_agents_in_project(project_id: str):
         """Get all agents currently working in a project."""
         return await context_tools.get_agents_in_project(project_id)
+    
+    # ==================== Architecture Tools ====================
+    
+    @server.tool()
+    async def analyze_architecture(project_id: str):
+        """Analyze current project architecture."""
+        return await architecture_tools.analyze_architecture(project_id)
+    
+    @server.tool()
+    async def get_architecture_recommendation(
+        project_id: str,
+        feature_description: str,
+        context: str = "",
+        constraints: list = [],
+        implementation_style: str = "modular"
+    ):
+        """Get architectural recommendation for a new feature or change."""
+        return await architecture_tools.get_architecture_recommendation(
+            project_id, feature_description, context, constraints, implementation_style
+        )
+    
+    @server.tool()
+    async def validate_code_structure(
+        project_id: str,
+        file_path: str,
+        code_structure: dict,
+        strict_mode: bool = False
+    ):
+        """Validate if proposed code structure follows architectural guidelines."""
+        return await architecture_tools.validate_code_structure(
+            project_id, file_path, code_structure, strict_mode
+        )
+    
+    @server.tool()
+    async def get_design_patterns():
+        """Get all available design patterns."""
+        return await architecture_tools.get_design_patterns()
+    
+    @server.tool()
+    async def update_architecture(
+        project_id: str,
+        recommendation_id: str,
+        implementation_summary: str,
+        actual_files_created: list = [],
+        actual_files_modified: list = []
+    ):
+        """Update project architecture after implementation."""
+        return await architecture_tools.update_architecture(
+            project_id, recommendation_id, implementation_summary,
+            actual_files_created, actual_files_modified
+        )
     
     logger.info("All tools registered successfully")
     return server
