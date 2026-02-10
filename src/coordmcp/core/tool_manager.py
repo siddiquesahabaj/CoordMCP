@@ -7,6 +7,9 @@ from fastmcp import FastMCP
 from coordmcp.tools import memory_tools
 from coordmcp.tools import context_tools
 from coordmcp.tools import architecture_tools
+from coordmcp.resources.project_resources import handle_project_resource
+from coordmcp.resources.agent_resources import handle_agent_resource
+from coordmcp.resources.architecture_resources import handle_architecture_resource
 from coordmcp.logger import get_logger
 
 logger = get_logger("tools")
@@ -330,4 +333,76 @@ def register_all_tools(server: FastMCP) -> FastMCP:
         )
     
     logger.info("All tools registered successfully")
+    
+    # ==================== Register Resources ====================
+    
+    # Project resources
+    @server.resource("project://{project_id}")
+    async def project_resource(project_id: str):
+        """Access project information."""
+        return await handle_project_resource(f"project://{project_id}")
+    
+    @server.resource("project://{project_id}/decisions")
+    async def project_decisions_resource(project_id: str):
+        """Access project decisions."""
+        return await handle_project_resource(f"project://{project_id}/decisions")
+    
+    @server.resource("project://{project_id}/tech-stack")
+    async def project_tech_stack_resource(project_id: str):
+        """Access project tech stack."""
+        return await handle_project_resource(f"project://{project_id}/tech-stack")
+    
+    @server.resource("project://{project_id}/architecture")
+    async def project_architecture_resource(project_id: str):
+        """Access project architecture."""
+        return await handle_project_resource(f"project://{project_id}/architecture")
+    
+    @server.resource("project://{project_id}/recent-changes")
+    async def project_changes_resource(project_id: str):
+        """Access project recent changes."""
+        return await handle_project_resource(f"project://{project_id}/recent-changes")
+    
+    @server.resource("project://{project_id}/modules")
+    async def project_modules_resource(project_id: str):
+        """Access project modules."""
+        return await handle_project_resource(f"project://{project_id}/modules")
+    
+    # Agent resources
+    @server.resource("agent://{agent_id}")
+    async def agent_resource(agent_id: str):
+        """Access agent profile."""
+        return await handle_agent_resource(f"agent://{agent_id}")
+    
+    @server.resource("agent://{agent_id}/context")
+    async def agent_context_resource(agent_id: str):
+        """Access agent context."""
+        return await handle_agent_resource(f"agent://{agent_id}/context")
+    
+    @server.resource("agent://{agent_id}/locked-files")
+    async def agent_locked_files_resource(agent_id: str):
+        """Access agent locked files."""
+        return await handle_agent_resource(f"agent://{agent_id}/locked-files")
+    
+    @server.resource("agent://{agent_id}/session-log")
+    async def agent_session_log_resource(agent_id: str):
+        """Access agent session log."""
+        return await handle_agent_resource(f"agent://{agent_id}/session-log")
+    
+    @server.resource("agent://registry")
+    async def agent_registry_resource():
+        """Access agent registry."""
+        return await handle_agent_resource("agent://registry")
+    
+    # Architecture resources
+    @server.resource("design-patterns://list")
+    async def design_patterns_list_resource():
+        """List all design patterns."""
+        return await handle_architecture_resource("design-patterns://list")
+    
+    @server.resource("design-patterns://{pattern_name}")
+    async def design_pattern_resource(pattern_name: str):
+        """Access specific design pattern."""
+        return await handle_architecture_resource(f"design-patterns://{pattern_name}")
+    
+    logger.info("All resources registered successfully")
     return server
