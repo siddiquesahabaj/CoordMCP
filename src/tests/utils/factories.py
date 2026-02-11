@@ -35,7 +35,7 @@ class DecisionFactory:
             "status": "active",
             "tags": ["test"],
             "related_files": [],
-            "author_agent": "test-agent"
+            "author_agent_id": "test-agent"
         }
         defaults.update(overrides)
         return Decision(**defaults)
@@ -59,7 +59,10 @@ class TechStackEntryFactory:
             "category": "backend",
             "technology": "FastAPI",
             "version": "0.100.0",
-            "rationale": "High performance framework"
+            "rationale": "High performance framework",
+            "decision_ref": None,
+            "added_at": datetime.now(),
+            "updated_at": datetime.now()
         }
         defaults.update(overrides)
         return TechStackEntry(**defaults)

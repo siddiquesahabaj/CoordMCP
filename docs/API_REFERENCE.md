@@ -17,14 +17,15 @@ Complete reference for all tools and resources available in CoordMCP.
 
 ## Tools Overview
 
-CoordMCP provides 25+ tools organized into four categories:
+CoordMCP provides 29 tools organized into three categories:
 
 | Category | Count | Tools |
 |----------|-------|-------|
-| Memory | 8 | Project, decision, tech stack, and change management |
-| Context | 8 | Agent registration, context switching, file locking |
+| Memory | 11 | Project, decision, tech stack, and change management |
+| Context | 13 | Agent registration, context switching, file locking |
 | Architecture | 5 | Analysis, recommendations, validation |
-| Query | 4 | Search and retrieval operations |
+
+**Note:** Query capabilities (search_decisions, get_module_info, get_file_dependencies) are integrated into Memory Tools.
 
 ---
 

@@ -691,7 +691,9 @@ coordmcp/
 }
 ```
 
-### 3.4 Query Tools
+### 3.4 Memory Query Tools (Part of Memory Tools)
+
+These tools are implemented in `memory_tools.py` but provide query capabilities:
 
 #### Tool: `search_decisions`
 ```python
@@ -703,8 +705,7 @@ coordmcp/
     "properties": {
       "project_id": {"type": "string"},
       "query": {"type": "string"},
-      "tags": {"type": "array", "items": {"type": "string"}},
-      "author_agent": {"type": "string"}
+      "tags": {"type": "array", "items": {"type": "string"}}
     },
     "required": ["project_id", "query"]
   }
@@ -740,6 +741,21 @@ coordmcp/
       "direction": {"type": "string", "enum": ["dependencies", "dependents", "both"]}
     },
     "required": ["project_id", "file_path"]
+  }
+}
+```
+
+#### Tool: `get_project_info`
+```python
+{
+  "name": "get_project_info",
+  "description": "Get complete project information",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "project_id": {"type": "string"}
+    },
+    "required": ["project_id"]
   }
 }
 ```
@@ -787,9 +803,13 @@ coordmcp/
 
 ### 4.3 Architecture Resources
 
-#### Resource: `arch-recommendation://{recommendation_id}`
-- **Description:** Complete architecture recommendation
-- **Content:** Full recommendation with file structure, code structure, implementation guide
+#### Resource: `design-patterns://list`
+- **Description:** List of all available design patterns
+- **Content:** Pattern names, descriptions, and best use cases
+
+#### Resource: `design-patterns://{pattern_name}`
+- **Description:** Specific pattern details
+- **Content:** Pattern description, structure, examples, best practices
 
 #### Resource: `module://{project_id}/{module_name}`
 - **Description:** Detailed module information

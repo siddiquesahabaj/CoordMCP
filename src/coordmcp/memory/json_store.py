@@ -9,7 +9,7 @@ from uuid import uuid4
 from coordmcp.storage.base import StorageBackend
 from coordmcp.memory.models import (
     Decision, TechStackEntry, Change, FileMetadata,
-    ProjectInfo, ArchitectureModule
+    ProjectInfo, ArchitectureModule, DecisionIndex, PaginatedChanges
 )
 from coordmcp.logger import get_logger
 
@@ -36,6 +36,10 @@ class ProjectMemoryStore:
     def _get_decisions_key(self, project_id: str) -> str:
         """Get storage key for decisions."""
         return f"memory/{project_id}/decisions"
+    
+    def _get_decisions_index_key(self, project_id: str) -> str:
+        """Get storage key for decisions index."""
+        return f"memory/{project_id}/decisions_index"
     
     def _get_tech_stack_key(self, project_id: str) -> str:
         """Get storage key for tech stack."""
@@ -136,16 +140,34 @@ class ProjectMemoryStore:
         if not self.project_exists(project_id):
             raise ValueError(f"Project {project_id} does not exist")
         
+        # Save decision
         key = self._get_decisions_key(project_id)
         data = self.backend.load(key) or {"decisions": {}}
-        
         data["decisions"][decision.id] = decision.to_dict()
-        
         self.backend.save(key, data)
+        
+        # Update search index
+        index = self._get_decisions_index(project_id)
+        index.add_decision(decision)
+        self._save_decisions_index(project_id, index)
+        
         self.update_project_info(project_id)
         
         logger.info(f"Saved decision '{decision.title}' for project {project_id}")
         return decision.id
+    
+    def _get_decisions_index(self, project_id: str) -> DecisionIndex:
+        """Get or create the decisions search index."""
+        key = self._get_decisions_index_key(project_id)
+        data = self.backend.load(key)
+        if data:
+            return DecisionIndex.from_dict(data.get("index", {}))
+        return DecisionIndex()
+    
+    def _save_decisions_index(self, project_id: str, index: DecisionIndex) -> None:
+        """Save the decisions search index."""
+        key = self._get_decisions_index_key(project_id)
+        self.backend.save(key, {"index": index.to_dict()})
     
     def get_decision(self, project_id: str, decision_id: str) -> Optional[Decision]:
         """Get a specific decision."""
@@ -180,6 +202,7 @@ class ProjectMemoryStore:
     def search_decisions(self, project_id: str, query: str, tags: Optional[List[str]] = None) -> List[Decision]:
         """
         Search decisions by query string and optional tags.
+        Uses indexed search for fast performance.
         
         Args:
             project_id: Project ID
@@ -189,30 +212,22 @@ class ProjectMemoryStore:
         Returns:
             List of matching decisions
         """
+        # Get all decisions as a map for indexed search
         all_decisions = self.get_all_decisions(project_id)
-        query_lower = query.lower()
+        decisions_map = {d.id: d for d in all_decisions}
         
-        results = []
-        for decision in all_decisions:
-            # Check if query matches any field
-            matches_query = (
-                query_lower in decision.title.lower() or
-                query_lower in decision.description.lower() or
-                query_lower in decision.context.lower() or
-                query_lower in decision.rationale.lower() or
-                query_lower in decision.impact.lower() or
-                any(query_lower in tag.lower() for tag in decision.tags)
-            )
+        # Use index for fast search if we have decisions
+        if decisions_map:
+            index = self._get_decisions_index(project_id)
+            results = index.search(query, decisions_map)
             
-            # Check tags if provided
-            matches_tags = True
+            # Filter by tags if provided
             if tags:
-                matches_tags = any(tag in decision.tags for tag in tags)
+                results = [d for d in results if any(tag in d.tags for tag in tags)]
             
-            if matches_query and matches_tags:
-                results.append(decision)
+            return results
         
-        return results
+        return []
     
     def update_decision_status(self, project_id: str, decision_id: str, status: str) -> bool:
         """Update the status of a decision."""

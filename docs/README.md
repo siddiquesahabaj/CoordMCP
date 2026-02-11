@@ -18,7 +18,7 @@ Learn how to use CoordMCP effectively.
 
 | Document | Description |
 |----------|-------------|
-| **[API Reference](API_REFERENCE.md)** | Complete reference for all 29 tools and 14 resources |
+| **[API Reference](API_REFERENCE.md)** | Complete reference for all 29 tools and 13 resources |
 | **[Data Models](DATA_MODELS.md)** | Understanding data structures and storage |
 | **[Troubleshooting](TROUBLESHOOTING.md)** | Common issues and solutions |
 | **[Extending](EXTENDING.md)** | How to extend CoordMCP with custom tools |

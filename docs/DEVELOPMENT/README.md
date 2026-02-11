@@ -109,7 +109,7 @@ See [Contributing Guide](../CONTRIBUTING.md) for:
 ┌──────────▼───────────────────────────────────┐
 │   FastMCP SERVER (main.py)                    │
 │   ├── Tool Manager (29 tools)                 │
-│   └── Resource Manager (14 resources)         │
+│   └── Resource Manager (13 resources)         │
 └──────────┬───────────────────────────────────┘
            │
 ┌──────────▼───────────────────────────────────┐

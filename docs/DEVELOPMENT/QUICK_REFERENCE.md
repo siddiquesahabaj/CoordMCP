@@ -45,7 +45,7 @@ Tools (25 total)
     ├── Architecture Tools (5)
     │   ├── ArchitectureAnalyzer
     │   └── ArchitectureRecommender
-    └── Query Tools (4)
+    └── Context Tools (13)
         └── All of the above
 
 Resources (6 types)
@@ -199,13 +199,22 @@ LockInfo
 7. update_file_metadata(project_id, file_path, type?, purpose?, module?, complexity?)
    → {success}
 
-8. search_decisions(project_id, query, tags?, author_agent?)
+8. search_decisions(project_id, query, tags?)
    → {success, results: List[Decision]}
+
+9. get_project_info(project_id)
+   → {success, project: ProjectInfo}
+
+10. get_file_dependencies(project_id, file_path, direction?)
+    → {success, dependencies: List[DependencyInfo]}
+
+11. get_module_info(project_id, module_name)
+    → {success, module: ArchitectureModule}
 ```
 
 ---
 
-## 🔄 Context Tools (8)
+## 🔄 Context Tools (13)
 
 ```python
 1. register_agent(agent_name, agent_type, capabilities?)
@@ -214,7 +223,7 @@ LockInfo
 2. start_context(agent_id, project_id, objective, task_description?, priority?)
    → {success, context: Context}
 
-3. lock_files(agent_id, project_id, files, reason, expected_unlock_time?)
+3. lock_files(agent_id, project_id, files, reason, expected_duration_minutes?)
    → {success, locked_files: List}
 
 4. unlock_files(agent_id, project_id, files)
@@ -223,7 +232,7 @@ LockInfo
 5. get_locked_files(project_id)
    → {success, locked_files: Dict[file → LockInfo]}
 
-6. switch_context(agent_id, from_context?, to_project_id, to_objective)
+6. switch_context(agent_id, to_project_id, to_objective, task_description?, priority?)
    → {success, new_context: Context}
 
 7. get_agent_context(agent_id)
@@ -231,6 +240,21 @@ LockInfo
 
 8. get_agents_list()
    → {success, agents: List[AgentProfile]}
+
+9. get_agent_profile(agent_id)
+   → {success, agent: AgentProfile}
+
+10. end_context(agent_id)
+    → {success}
+
+11. get_context_history(agent_id, limit?)
+    → {success, history: List[ContextEntry]}
+
+12. get_session_log(agent_id, limit?)
+    → {success, log: List[SessionLogEntry]}
+
+13. get_agents_in_project(project_id)
+    → {success, agents: List[AgentProfile]}
 ```
 
 ---
@@ -252,7 +276,7 @@ LockInfo
 3. validate_code_structure(project_id, file_path, code_structure, strict_mode?)
    → {success, issues: List[ValidationIssue]}
 
-4. update_architecture(project_id, recommendation_id, implementation_summary?, actual_files_created?, actual_files_modified?, lessons_learned?)
+4. update_architecture(project_id, recommendation_id, implementation_summary?, actual_files_created?, actual_files_modified?)
    → {success}
 
 5. get_design_patterns()
@@ -261,21 +285,12 @@ LockInfo
 
 ---
 
-## 🔎 Query Tools (4)
+## 📊 Tool Summary
 
-```python
-1. search_decisions(project_id, query, tags?, author_agent?)
-   → {success, results: List[Decision]}
-
-2. get_module_info(project_id, module_name)
-   → {success, module: ArchitectureModule}
-
-3. get_file_dependencies(project_id, file_path, direction?)
-   → {success, dependencies: List[DependencyInfo]}
-
-4. get_agent_activity(agent_id, limit?)
-   → {success, activities: List[ActivityLog]}
-```
+**Total: 29 Tools**
+- Memory Tools: 11
+- Context Tools: 13
+- Architecture Tools: 5
 
 ---
 
@@ -311,9 +326,6 @@ agent://{agent_id}/locked-files
 
 agent://{agent_id}/session-log
 ├── Returns: Activity log
-
-arch-recommendation://{recommendation_id}
-├── Returns: Full recommendation
 
 design-patterns://list
 ├── Returns: All patterns
@@ -356,12 +368,11 @@ coordmcp/
 │   │   ├── recommender.py ✓
 │   │   ├── validators.py ✓
 │   │   └── patterns.py ✓
-│   ├── tools/
+  │   ├── tools/
 │   │   ├── __init__.py ✓
-│   │   ├── memory_tools.py (8 tools) ✓
-│   │   ├── context_tools.py (8 tools) ✓
-│   │   ├── architecture_tools.py (5 tools) ✓
-│   │   └── query_tools.py (4 tools) ✓
+│   │   ├── memory_tools.py (11 tools) ✓
+│   │   ├── context_tools.py (13 tools) ✓
+│   │   └── architecture_tools.py (5 tools) ✓
 │   ├── resources/
 │   │   ├── __init__.py ✓
 │   │   ├── project_resources.py ✓
@@ -471,7 +482,7 @@ coordmcp/
 
 ## 🎯 Success Criteria (Day 5)
 
-✅ All 25 tools fully implemented and functional
+✅ All 29 tools fully implemented and functional
 ✅ All 6 resource types working
 ✅ JSON storage working reliably
 ✅ No data corruption on failures

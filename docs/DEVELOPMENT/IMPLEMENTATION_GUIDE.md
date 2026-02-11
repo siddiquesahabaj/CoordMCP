@@ -349,13 +349,11 @@ async def save_decision_handler(project_id: str, title: str, ...) -> Dict:
 4. update_architecture
 5. get_design_patterns
 
-**Query Tools (4 tools)**
-1. search_decisions
-2. get_module_info
-3. get_file_dependencies
-4. get_agent_activity
-
-**Total: 25 tools**
+**Actual Tool Count:**
+- Memory Tools: 11 tools
+- Context Tools: 13 tools
+- Architecture Tools: 5 tools
+- **Total: 29 tools**
 
 ## 3. FastMCP Resource Implementation Details
 
@@ -378,7 +376,6 @@ agent://{agent_id}/locked-files
 agent://{agent_id}/session-log
 
 # Architecture Resources
-arch-recommendation://{recommendation_id}
 design-patterns://list
 design-patterns://{pattern_name}
 ```
@@ -568,11 +565,11 @@ class DataCorruptionError(CoordMCPError):
 3. Implement storage/base.py & storage/json_adapter.py
 4. Implement memory/models.py
 5. Implement memory/json_store.py (ProjectMemoryStore)
-6. Create memory_tools.py with all 8 memory tools
+6. Create memory_tools.py with all 11 memory tools
 7. Register tools in core/tool_manager.py
 8. Test memory system thoroughly
 9. Implement context/manager.py & context/file_tracker.py
-10. Create context_tools.py with all 8 context tools
+10. Create context_tools.py with all 13 context tools
 11. Implement architecture/analyzer.py & recommender.py
 12. Create architecture_tools.py with 5 architecture tools
 13. Implement all resources

@@ -117,7 +117,7 @@ If you see success messages, you're all set! 🎉
 ### Learn More
 - **[Installation Guide](./INSTALLATION.md)** - Detailed setup options
 - **[Configuration](./CONFIGURATION.md)** - Environment variables and settings
-- **[API Reference](./API_REFERENCE.md)** - All 29 tools and 14 resources
+- **[API Reference](./API_REFERENCE.md)** - All 29 tools and 13 resources
 
 ### Try Examples
 - **[Basic Project Setup](./examples/basic-project-setup.md)** - Learn the basics

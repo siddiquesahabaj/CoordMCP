@@ -136,7 +136,7 @@ async def save_decision(
             rationale=rationale,
             impact=impact,
             related_files=related_files or [],
-            author_agent=author_agent,
+            author_agent_id=author_agent,
             tags=tags or []
         )
         
