@@ -40,7 +40,7 @@ def get_memory_store() -> ProjectMemoryStore:
 async def register_agent(
     agent_name: str,
     agent_type: str,
-    capabilities: List[str] = [],
+    capabilities: Optional[List[str]] = None,
     version: str = "1.0.0"
 ) -> Dict[str, Any]:
     """
@@ -55,6 +55,48 @@ async def register_agent(
     Returns:
         Dictionary with agent_id and success status
     """
+    # Input validation
+    if not agent_name or not isinstance(agent_name, str):
+        return {
+            "success": False,
+            "error": "agent_name is required and must be a non-empty string",
+            "error_type": "ValidationError"
+        }
+    
+    if not agent_type or not isinstance(agent_type, str):
+        return {
+            "success": False,
+            "error": "agent_type is required and must be a non-empty string",
+            "error_type": "ValidationError"
+        }
+    
+    # Validate agent_type against allowed values
+    valid_agent_types = ["opencode", "cursor", "claude_code", "custom"]
+    if agent_type not in valid_agent_types:
+        return {
+            "success": False,
+            "error": f"Invalid agent_type. Must be one of: {', '.join(valid_agent_types)}",
+            "error_type": "ValidationError"
+        }
+    
+    # Validate capabilities and set default
+    if capabilities is None:
+        capabilities = []
+    elif not isinstance(capabilities, list):
+        return {
+            "success": False,
+            "error": "capabilities must be a list of strings",
+            "error_type": "ValidationError"
+        }
+    
+    # Validate version
+    if not version or not isinstance(version, str):
+        return {
+            "success": False,
+            "error": "version must be a non-empty string",
+            "error_type": "ValidationError"
+        }
+    
     try:
         manager = get_context_manager()
         
@@ -70,11 +112,18 @@ async def register_agent(
             "agent_id": agent_id,
             "message": f"Agent '{agent_name}' registered successfully"
         }
-    except Exception as e:
-        logger.error(f"Error registering agent: {e}")
+    except ValueError as e:
+        logger.error(f"Validation error registering agent: {e}")
         return {
             "success": False,
             "error": str(e),
+            "error_type": "ValidationError"
+        }
+    except Exception as e:
+        logger.error(f"Error registering agent: {type(e).__name__}")
+        return {
+            "success": False,
+            "error": "Internal server error occurred",
             "error_type": "InternalError"
         }
 
@@ -99,7 +148,7 @@ async def get_agents_list(status: str = "all") -> Dict[str, Any]:
         
         return {
             "success": True,
-            "agents": [a.to_dict() for a in agents],
+            "agents": [a.dict() for a in agents],
             "count": len(agents)
         }
     except Exception as e:
@@ -134,7 +183,7 @@ async def get_agent_profile(agent_id: str) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "agent": agent.to_dict()
+            "agent": agent.dict()
         }
     except Exception as e:
         logger.error(f"Error getting agent profile: {e}")
@@ -202,7 +251,7 @@ async def start_context(
         
         return {
             "success": True,
-            "context": context.to_dict(),
+            "context": context.dict(),
             "message": f"Context started: {objective}"
         }
     except Exception as e:
@@ -237,7 +286,7 @@ async def get_agent_context(agent_id: str) -> Dict[str, Any]:
             }
         
         # Get full context
-        context = manager.get_agent_context_full(agent_id)
+        context = manager.get_context(agent_id)
         
         if not context:
             return {
@@ -248,7 +297,7 @@ async def get_agent_context(agent_id: str) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "context": context.to_dict()
+            "context": context.dict()
         }
     except Exception as e:
         logger.error(f"Error getting agent context: {e}")
@@ -303,15 +352,15 @@ async def switch_context(
         # Switch context
         context = manager.switch_context(
             agent_id=agent_id,
-            to_project_id=to_project_id,
-            to_objective=to_objective,
+            new_project_id=to_project_id,
+            new_objective=to_objective,
             task_description=task_description,
             priority=priority
         )
         
         return {
             "success": True,
-            "context": context.to_dict(),
+            "context": context.dict(),
             "message": f"Context switched to: {to_objective}"
         }
     except Exception as e:
@@ -524,7 +573,7 @@ async def get_context_history(agent_id: str, limit: int = 10) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "history": [e.to_dict() for e in entries],
+            "history": [e.dict() for e in entries],
             "count": len(entries)
         }
     except Exception as e:
@@ -554,7 +603,7 @@ async def get_session_log(agent_id: str, limit: int = 50) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "log": [e.to_dict() for e in entries],
+            "log": [e.dict() for e in entries],
             "count": len(entries)
         }
     except Exception as e:

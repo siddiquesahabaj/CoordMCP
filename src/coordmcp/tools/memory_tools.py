@@ -74,7 +74,7 @@ async def get_project_info(project_id: str) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "project": project_info.to_dict()
+            "project": project_info.dict()
         }
     except Exception as e:
         logger.error(f"Error getting project info: {e}")
@@ -127,14 +127,15 @@ async def save_decision(
             }
         
         # Create decision
+        from coordmcp.memory.models import DecisionStatus
         decision = Decision(
             id=str(uuid4()),
-            timestamp=datetime.now(),
             title=title,
             description=description,
             context=context,
             rationale=rationale,
             impact=impact,
+            status=DecisionStatus.ACTIVE,
             related_files=related_files or [],
             author_agent_id=author_agent,
             tags=tags or []
@@ -194,7 +195,7 @@ async def get_project_decisions(
         
         return {
             "success": True,
-            "decisions": [d.to_dict() for d in decisions],
+            "decisions": [d.dict() for d in decisions],
             "count": len(decisions)
         }
     except Exception as e:
@@ -236,7 +237,7 @@ async def search_decisions(
         
         return {
             "success": True,
-            "decisions": [d.to_dict() for d in decisions],
+            "decisions": [d.dict() for d in decisions],
             "count": len(decisions)
         }
     except Exception as e:
@@ -382,14 +383,14 @@ async def log_change(
                 "error_type": "ProjectNotFound"
             }
         
+        from coordmcp.memory.models import ChangeType, ArchitectureImpact
         change = Change(
             id=str(uuid4()),
-            timestamp=datetime.now(),
             file_path=file_path,
-            change_type=change_type,
+            change_type=ChangeType(change_type),
             description=description,
             agent_id=agent_id,
-            architecture_impact=architecture_impact,
+            architecture_impact=ArchitectureImpact(architecture_impact),
             related_decision=related_decision if related_decision else None,
             code_summary=code_summary
         )
@@ -441,7 +442,7 @@ async def get_recent_changes(
         
         return {
             "success": True,
-            "changes": [c.to_dict() for c in changes],
+            "changes": [c.dict() for c in changes],
             "count": len(changes)
         }
     except Exception as e:
@@ -495,9 +496,11 @@ async def update_file_metadata(
                 "error_type": "ProjectNotFound"
             }
         
+        from coordmcp.memory.models import FileType, Complexity
         metadata = FileMetadata(
+            id=f"file_{file_path}",
             path=file_path,
-            file_type=file_type,
+            file_type=FileType(file_type),
             last_modified=datetime.now(),
             last_modified_by=last_modified_by,
             module=module,
@@ -505,7 +508,7 @@ async def update_file_metadata(
             dependencies=dependencies or [],
             dependents=dependents or [],
             lines_of_code=lines_of_code,
-            complexity=complexity
+            complexity=Complexity(complexity)
         )
         
         store.update_file_metadata(project_id, metadata)
@@ -595,8 +598,8 @@ async def get_module_info(
         
         return {
             "success": True,
-            "module": module.to_dict() if module else None,
-            "files": [f.to_dict() for f in files],
+            "module": module.dict() if module else None,
+            "files": [f.dict() for f in files],
             "file_count": len(files)
         }
     except Exception as e:

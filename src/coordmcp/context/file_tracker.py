@@ -52,7 +52,7 @@ class FileTracker:
         locks = {}
         for file_path, lock_data in data["locks"].items():
             try:
-                locks[file_path] = LockInfo.from_dict(lock_data)
+                locks[file_path] = LockInfo.parse_obj(lock_data)
             except Exception as e:
                 logger.warning(f"Failed to parse lock for {file_path}: {e}")
         
@@ -72,7 +72,7 @@ class FileTracker:
         key = self._get_project_locks_key(project_id)
         
         data = {
-            "locks": {path: lock.to_dict() for path, lock in locks.items()},
+            "locks": {path: lock.dict() for path, lock in locks.items()},
             "updated_at": datetime.now().isoformat()
         }
         
@@ -84,7 +84,8 @@ class FileTracker:
         project_id: str,
         files: List[str],
         reason: str,
-        expected_unlock_time: Optional[datetime] = None
+        expected_unlock_time: Optional[datetime] = None,
+        priority: int = 0
     ) -> Dict:
         """
         Lock files to prevent conflicts between agents.
@@ -95,6 +96,7 @@ class FileTracker:
             files: List of file paths to lock
             reason: Reason for locking
             expected_unlock_time: When the lock is expected to be released
+            priority: Lock priority (higher can preempt lower)
             
         Returns:
             Dictionary with success status and locked/conflicted files
@@ -110,11 +112,17 @@ class FileTracker:
         for file_path in files:
             if file_path in locks:
                 existing_lock = locks[file_path]
-                if existing_lock.locked_by != agent_id:
+                if not existing_lock.is_held_by(agent_id):
                     # Check if lock is stale
                     if existing_lock.is_stale(self.config.lock_timeout_hours):
                         logger.warning(
                             f"Removing stale lock on {file_path} by {existing_lock.locked_by}"
+                        )
+                        del locks[file_path]
+                    elif existing_lock.can_acquire(agent_id, priority):
+                        # Higher priority can preempt
+                        logger.warning(
+                            f"Preempting lock on {file_path} by {existing_lock.locked_by} (priority {priority} > {existing_lock.priority})"
                         )
                         del locks[file_path]
                     else:
@@ -122,13 +130,15 @@ class FileTracker:
                             "file_path": file_path,
                             "locked_by": existing_lock.locked_by,
                             "locked_at": existing_lock.locked_at.isoformat(),
-                            "reason": existing_lock.reason
+                            "reason": existing_lock.reason,
+                            "expected_unlock_time": existing_lock.expected_unlock_time.isoformat() if existing_lock.expected_unlock_time else None
                         })
         
         if conflicts:
             raise FileLockError(
-                f"Cannot lock {len(conflicts)} file(s) - already locked by other agents",
-                conflicts
+                file_path=files[0] if files else "unknown",
+                message=f"Cannot lock {len(conflicts)} file(s) - already locked by other agents",
+                conflicts=conflicts
             )
         
         # Create new locks
@@ -139,7 +149,8 @@ class FileTracker:
                 locked_at=datetime.now(),
                 locked_by=agent_id,
                 reason=reason,
-                expected_unlock_time=expected_unlock_time
+                expected_unlock_time=expected_unlock_time,
+                priority=priority
             )
             locks[file_path] = lock_info
             locked_files.append(file_path)
@@ -188,7 +199,7 @@ class FileTracker:
             existing_lock = locks[file_path]
             
             # Check if agent owns the lock
-            if existing_lock.locked_by != agent_id:
+            if not existing_lock.is_held_by(agent_id):
                 if force:
                     warnings.append({
                         "file_path": file_path,
@@ -255,7 +266,8 @@ class FileTracker:
                 "file_path": file_path,
                 "locked_at": lock_info.locked_at.isoformat(),
                 "reason": lock_info.reason,
-                "expected_unlock_time": lock_info.expected_unlock_time.isoformat() if lock_info.expected_unlock_time else None
+                "expected_unlock_time": lock_info.expected_unlock_time.isoformat() if lock_info.expected_unlock_time else None,
+                "priority": lock_info.priority
             })
         
         return {
@@ -368,19 +380,12 @@ class FileTracker:
         
         lock_info = locks[file_path]
         
-        # Only owner can extend
-        if lock_info.locked_by != agent_id:
-            logger.warning(
-                f"Agent {agent_id} tried to extend lock on {file_path} owned by {lock_info.locked_by}"
-            )
+        try:
+            lock_info.extend(new_expected_unlock_time, agent_id)
+            self._save_project_locks(project_id, locks)
+            
+            logger.info(f"Agent {agent_id} extended lock on {file_path}")
+            return True
+        except ValueError as e:
+            logger.warning(f"Failed to extend lock: {e}")
             return False
-        
-        # Update lock
-        lock_info.locked_at = datetime.now()  # Reset lock time
-        lock_info.expected_unlock_time = new_expected_unlock_time
-        
-        self._save_project_locks(project_id, locks)
-        
-        logger.info(f"Agent {agent_id} extended lock on {file_path}")
-        
-        return True

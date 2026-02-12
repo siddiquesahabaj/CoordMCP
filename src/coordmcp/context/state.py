@@ -2,13 +2,13 @@
 Data models for the CoordMCP context management system.
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Literal
 from enum import Enum
+from pydantic import BaseModel, Field, validator
 
 
-class AgentType(Enum):
+class AgentType(str, Enum):
     """Types of agents that can register with CoordMCP."""
     OPENCODE = "opencode"
     CURSOR = "cursor"
@@ -16,7 +16,7 @@ class AgentType(Enum):
     CUSTOM = "custom"
 
 
-class Priority(Enum):
+class Priority(str, Enum):
     """Priority levels for agent tasks."""
     CRITICAL = "critical"
     HIGH = "high"
@@ -24,7 +24,7 @@ class Priority(Enum):
     LOW = "low"
 
 
-class OperationType(Enum):
+class OperationType(str, Enum):
     """Types of file operations agents can perform."""
     READ = "read"
     WRITE = "write"
@@ -32,218 +32,136 @@ class OperationType(Enum):
     DELETE = "delete"
 
 
-@dataclass
-class CurrentContext:
+class CurrentContext(BaseModel):
     """Represents an agent's current working context."""
-    project_id: str
-    current_objective: str
-    current_file: str = ""
-    task_description: str = ""
-    priority: str = "medium"
-    started_at: datetime = field(default_factory=datetime.now)
-    estimated_completion: Optional[datetime] = None
+    project_id: str = Field(..., description="Project ID the agent is working on")
+    current_objective: str = Field(..., description="Current objective or goal")
+    current_file: str = Field(default="", description="File the agent is currently editing")
+    task_description: str = Field(default="", description="Detailed task description")
+    priority: Priority = Field(default=Priority.MEDIUM, description="Task priority")
+    started_at: datetime = Field(default_factory=datetime.now, description="When this context started")
+    estimated_completion: Optional[datetime] = Field(default=None, description="Estimated completion time")
     
-    def to_dict(self) -> Dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "project_id": self.project_id,
-            "current_objective": self.current_objective,
-            "current_file": self.current_file,
-            "task_description": self.task_description,
-            "priority": self.priority,
-            "started_at": self.started_at.isoformat(),
-            "estimated_completion": self.estimated_completion.isoformat() if self.estimated_completion else None
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
         }
     
-    @classmethod
-    def from_dict(cls, data: Dict) -> "CurrentContext":
-        """Create CurrentContext from dictionary."""
-        started_at = datetime.fromisoformat(data["started_at"])
-        estimated_completion = None
-        if data.get("estimated_completion"):
-            estimated_completion = datetime.fromisoformat(data["estimated_completion"])
-        
-        return cls(
-            project_id=data["project_id"],
-            current_objective=data["current_objective"],
-            current_file=data.get("current_file", ""),
-            task_description=data.get("task_description", ""),
-            priority=data.get("priority", "medium"),
-            started_at=started_at,
-            estimated_completion=estimated_completion
-        )
+    @validator('estimated_completion')
+    def validate_estimated_completion(cls, v, values):
+        if v and 'started_at' in values and v < values['started_at']:
+            raise ValueError("estimated_completion cannot be before started_at")
+        return v
+    
+    def is_overdue(self) -> bool:
+        """Check if the estimated completion has passed."""
+        if self.estimated_completion:
+            return datetime.now() > self.estimated_completion
+        return False
+    
+    def get_duration(self) -> timedelta:
+        """Get how long this context has been active."""
+        return datetime.now() - self.started_at
 
 
-@dataclass
-class LockInfo:
+class LockInfo(BaseModel):
     """Information about a file lock."""
-    file_path: str
-    locked_at: datetime
-    locked_by: str
-    reason: str
-    expected_unlock_time: Optional[datetime] = None
+    file_path: str = Field(..., description="Path of the locked file")
+    locked_at: datetime = Field(default_factory=datetime.now, description="When the lock was acquired")
+    locked_by: str = Field(..., description="Agent ID that holds the lock")
+    reason: str = Field(default="", description="Reason for locking")
+    expected_unlock_time: Optional[datetime] = Field(default=None, description="When the lock is expected to be released")
+    lock_scope: str = Field(default="file", description="Scope: file, directory, module, or project")
+    priority: int = Field(default=0, ge=0, description="Lock priority (higher can preempt lower)")
     
-    def to_dict(self) -> Dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "file_path": self.file_path,
-            "locked_at": self.locked_at.isoformat(),
-            "locked_by": self.locked_by,
-            "reason": self.reason,
-            "expected_unlock_time": self.expected_unlock_time.isoformat() if self.expected_unlock_time else None
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
         }
-    
-    @classmethod
-    def from_dict(cls, data: Dict) -> "LockInfo":
-        """Create LockInfo from dictionary."""
-        locked_at = datetime.fromisoformat(data["locked_at"])
-        expected_unlock_time = None
-        if data.get("expected_unlock_time"):
-            expected_unlock_time = datetime.fromisoformat(data["expected_unlock_time"])
-        
-        return cls(
-            file_path=data["file_path"],
-            locked_at=locked_at,
-            locked_by=data["locked_by"],
-            reason=data["reason"],
-            expected_unlock_time=expected_unlock_time
-        )
     
     def is_stale(self, timeout_hours: int = 24) -> bool:
         """Check if the lock is stale (older than timeout)."""
-        from datetime import timedelta
         age = datetime.now() - self.locked_at
         return age > timedelta(hours=timeout_hours)
+    
+    def is_held_by(self, agent_id: str) -> bool:
+        """Check if the lock is held by a specific agent."""
+        return self.locked_by == agent_id
+    
+    def can_acquire(self, requesting_agent_id: str, requesting_priority: int = 0) -> bool:
+        """Check if requesting agent can acquire this lock."""
+        if self.locked_by == requesting_agent_id:
+            return True
+        if self.priority > 0 and requesting_priority > self.priority:
+            return True
+        return False
+    
+    def extend(self, new_expected_time: Optional[datetime] = None, agent_id: str = ""):
+        """Extend the lock duration."""
+        if agent_id and agent_id != self.locked_by:
+            raise ValueError(f"Only the lock owner ({self.locked_by}) can extend the lock")
+        self.locked_at = datetime.now()
+        if new_expected_time:
+            self.expected_unlock_time = new_expected_time
 
 
-@dataclass
-class ContextEntry:
+class ContextEntry(BaseModel):
     """Represents a single context entry in the agent's recent context."""
-    timestamp: datetime
-    file: str
-    operation: str
-    summary: str
+    timestamp: datetime = Field(default_factory=datetime.now)
+    file: str = Field(..., description="File that was operated on")
+    operation: OperationType = Field(..., description="Type of operation")
+    summary: str = Field(default="", description="Brief summary of what was done")
     
-    def to_dict(self) -> Dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "timestamp": self.timestamp.isoformat(),
-            "file": self.file,
-            "operation": self.operation,
-            "summary": self.summary
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
         }
-    
-    @classmethod
-    def from_dict(cls, data: Dict) -> "ContextEntry":
-        """Create ContextEntry from dictionary."""
-        return cls(
-            timestamp=datetime.fromisoformat(data["timestamp"]),
-            file=data["file"],
-            operation=data["operation"],
-            summary=data["summary"]
-        )
 
 
-@dataclass
-class SessionLogEntry:
+class SessionLogEntry(BaseModel):
     """Represents a session log entry."""
-    timestamp: datetime
-    event: str
-    details: Dict
+    timestamp: datetime = Field(default_factory=datetime.now)
+    event: str = Field(..., description="Event type")
+    details: Dict = Field(default_factory=dict, description="Event details")
     
-    def to_dict(self) -> Dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "timestamp": self.timestamp.isoformat(),
-            "event": self.event,
-            "details": self.details
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
         }
-    
-    @classmethod
-    def from_dict(cls, data: Dict) -> "SessionLogEntry":
-        """Create SessionLogEntry from dictionary."""
-        return cls(
-            timestamp=datetime.fromisoformat(data["timestamp"]),
-            event=data["event"],
-            details=data.get("details", {})
-        )
 
 
-@dataclass
-class AgentContext:
+class AgentContext(BaseModel):
     """Complete context for an agent."""
-    agent_id: str
-    agent_name: str
-    agent_type: str
-    session_id: str
-    created_at: datetime
+    agent_id: str = Field(..., description="Unique agent ID")
+    agent_name: str = Field(..., description="Human-readable agent name")
+    agent_type: AgentType = Field(..., description="Type of agent")
+    session_id: str = Field(..., description="Current session ID")
+    created_at: datetime = Field(default_factory=datetime.now, description="When this context was created")
     
-    current_context: Optional[CurrentContext] = None
-    locked_files: List[LockInfo] = field(default_factory=list)
-    recent_context: List[ContextEntry] = field(default_factory=list)
-    session_log: List[SessionLogEntry] = field(default_factory=list)
+    current_context: Optional[CurrentContext] = Field(default=None, description="Current working context")
+    locked_files: List[LockInfo] = Field(default_factory=list, description="Files currently locked by this agent")
+    recent_context: List[ContextEntry] = Field(default_factory=list, description="Recent file operations (last 50)")
+    session_log: List[SessionLogEntry] = Field(default_factory=list, description="Session events (last 100)")
     
-    def to_dict(self) -> Dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "agent_id": self.agent_id,
-            "agent_name": self.agent_name,
-            "agent_type": self.agent_type,
-            "session_id": self.session_id,
-            "created_at": self.created_at.isoformat(),
-            "current_context": self.current_context.to_dict() if self.current_context else None,
-            "locked_files": [lock.to_dict() for lock in self.locked_files],
-            "recent_context": [entry.to_dict() for entry in self.recent_context],
-            "session_log": [entry.to_dict() for entry in self.session_log]
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
         }
     
-    @classmethod
-    def from_dict(cls, data: Dict) -> "AgentContext":
-        """Create AgentContext from dictionary."""
-        current_context = None
-        if data.get("current_context"):
-            current_context = CurrentContext.from_dict(data["current_context"])
-        
-        locked_files = []
-        for lock_data in data.get("locked_files", []):
-            locked_files.append(LockInfo.from_dict(lock_data))
-        
-        recent_context = []
-        for entry_data in data.get("recent_context", []):
-            recent_context.append(ContextEntry.from_dict(entry_data))
-        
-        session_log = []
-        for log_data in data.get("session_log", []):
-            session_log.append(SessionLogEntry.from_dict(log_data))
-        
-        return cls(
-            agent_id=data["agent_id"],
-            agent_name=data["agent_name"],
-            agent_type=data["agent_type"],
-            session_id=data["session_id"],
-            created_at=datetime.fromisoformat(data["created_at"]),
-            current_context=current_context,
-            locked_files=locked_files,
-            recent_context=recent_context,
-            session_log=session_log
-        )
-    
-    def add_context_entry(self, entry: ContextEntry):
-        """Add a context entry, keeping only the last 50."""
+    def add_context_entry(self, entry: ContextEntry, max_entries: int = 50):
+        """Add a context entry, keeping only the last N entries."""
         self.recent_context.append(entry)
-        # Keep only last 50 entries
-        if len(self.recent_context) > 50:
-            self.recent_context = self.recent_context[-50:]
+        if len(self.recent_context) > max_entries:
+            self.recent_context = self.recent_context[-max_entries:]
     
-    def add_session_log_entry(self, entry: SessionLogEntry):
-        """Add a session log entry, keeping only the last 100."""
+    def add_session_log_entry(self, entry: SessionLogEntry, max_entries: int = 100):
+        """Add a session log entry, keeping only the last N entries."""
         self.session_log.append(entry)
-        # Keep only last 100 entries
-        if len(self.session_log) > 100:
-            self.session_log = self.session_log[-100:]
+        if len(self.session_log) > max_entries:
+            self.session_log = self.session_log[-max_entries:]
     
     def lock_file(self, lock_info: LockInfo):
-        """Add a file lock."""
+        """Add a file lock, replacing any existing lock for this file."""
         # Remove existing lock for this file if any
         self.locked_files = [l for l in self.locked_files if l.file_path != lock_info.file_path]
         self.locked_files.append(lock_info)
@@ -253,49 +171,50 @@ class AgentContext:
         original_count = len(self.locked_files)
         self.locked_files = [l for l in self.locked_files if l.file_path != file_path]
         return len(self.locked_files) < original_count
+    
+    def is_file_locked_by_me(self, file_path: str) -> bool:
+        """Check if this agent has locked a specific file."""
+        return any(l.file_path == file_path for l in self.locked_files)
+    
+    def get_locked_file_paths(self) -> List[str]:
+        """Get list of file paths locked by this agent."""
+        return [l.file_path for l in self.locked_files]
+    
+    def switch_context(self, new_context: CurrentContext) -> Optional[CurrentContext]:
+        """Switch to a new context, returning the previous one."""
+        old_context = self.current_context
+        self.current_context = new_context
+        
+        # Log the context switch
+        self.add_session_log_entry(SessionLogEntry(
+            event="context_switched",
+            details={
+                "from_project": old_context.project_id if old_context else None,
+                "to_project": new_context.project_id,
+                "from_objective": old_context.current_objective if old_context else None,
+                "to_objective": new_context.current_objective
+            }
+        ))
+        
+        return old_context
 
 
-@dataclass
-class AgentProfile:
+class AgentProfile(BaseModel):
     """Profile information for an agent (stored in global registry)."""
-    agent_id: str
-    agent_name: str
-    agent_type: str
-    version: str = "1.0.0"
-    capabilities: List[str] = field(default_factory=list)
-    last_active: datetime = field(default_factory=datetime.now)
-    total_sessions: int = 0
-    projects_involved: List[str] = field(default_factory=list)
-    status: str = "active"
+    agent_id: str = Field(..., description="Unique agent ID")
+    agent_name: str = Field(..., description="Human-readable name")
+    agent_type: AgentType = Field(..., description="Type of agent")
+    version: str = Field(default="1.0.0", description="Agent version")
+    capabilities: List[str] = Field(default_factory=list, description="Agent capabilities/skills")
+    last_active: datetime = Field(default_factory=datetime.now, description="Last activity timestamp")
+    total_sessions: int = Field(default=0, ge=0, description="Total number of sessions")
+    projects_involved: List[str] = Field(default_factory=list, description="Projects this agent has worked on")
+    status: Literal["active", "inactive", "suspended"] = Field(default="active")
     
-    def to_dict(self) -> Dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "agent_id": self.agent_id,
-            "agent_name": self.agent_name,
-            "agent_type": self.agent_type,
-            "version": self.version,
-            "capabilities": self.capabilities,
-            "last_active": self.last_active.isoformat(),
-            "total_sessions": self.total_sessions,
-            "projects_involved": self.projects_involved,
-            "status": self.status
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
         }
-    
-    @classmethod
-    def from_dict(cls, data: Dict) -> "AgentProfile":
-        """Create AgentProfile from dictionary."""
-        return cls(
-            agent_id=data["agent_id"],
-            agent_name=data["agent_name"],
-            agent_type=data["agent_type"],
-            version=data.get("version", "1.0.0"),
-            capabilities=data.get("capabilities", []),
-            last_active=datetime.fromisoformat(data["last_active"]),
-            total_sessions=data.get("total_sessions", 0),
-            projects_involved=data.get("projects_involved", []),
-            status=data.get("status", "active")
-        )
     
     def mark_active(self):
         """Update last_active timestamp."""
@@ -305,3 +224,50 @@ class AgentProfile:
         """Add a project to the agent's involvement list."""
         if project_id not in self.projects_involved:
             self.projects_involved.append(project_id)
+    
+    def increment_sessions(self):
+        """Increment the session counter."""
+        self.total_sessions += 1
+    
+    def is_active(self) -> bool:
+        """Check if the agent is currently active."""
+        return self.status == "active"
+
+
+class LockConflict(BaseModel):
+    """Represents a file lock conflict."""
+    file_path: str
+    locked_by: str
+    locked_at: datetime
+    reason: str
+    expected_unlock_time: Optional[datetime] = None
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
+class ContextSummary(BaseModel):
+    """Summary of agent context for display."""
+    agent_id: str
+    agent_name: str
+    current_project: Optional[str] = None
+    current_objective: Optional[str] = None
+    files_locked: int = 0
+    recent_operations: int = 0
+    session_duration_minutes: int = 0
+    
+    @classmethod
+    def from_agent_context(cls, context: AgentContext) -> "ContextSummary":
+        """Create a summary from an agent context."""
+        duration = datetime.now() - context.created_at
+        return cls(
+            agent_id=context.agent_id,
+            agent_name=context.agent_name,
+            current_project=context.current_context.project_id if context.current_context else None,
+            current_objective=context.current_context.current_objective if context.current_context else None,
+            files_locked=len(context.locked_files),
+            recent_operations=len(context.recent_context),
+            session_duration_minutes=int(duration.total_seconds() / 60)
+        )

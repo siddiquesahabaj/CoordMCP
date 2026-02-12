@@ -38,6 +38,147 @@ python -m coordmcp.main
 
 The server will start and listen for MCP connections.
 
+## 🖥️ Getting Started with OpenCode
+
+OpenCode integrates seamlessly with CoordMCP, enabling automatic multi-agent coordination while you code naturally.
+
+### Quick Setup (2 minutes)
+
+1. **Copy the configuration** to your OpenCode config:
+
+```bash
+# Copy the pre-configured template
+cp opencode-config.jsonc ~/.config/opencode/opencode.jsonc
+
+# Or for project-specific config
+cp opencode-config.jsonc ./opencode.jsonc
+```
+
+2. **Start CoordMCP** in one terminal:
+```bash
+python -m coordmcp.main
+```
+
+3. **Start OpenCode** in another terminal:
+```bash
+opencode
+```
+
+That's it! OpenCode will now automatically use CoordMCP tools in the background.
+
+### How It Works
+
+When you say something like: **"Create a todo app"**
+
+OpenCode will automatically:
+
+1. ✅ **Create a project** in CoordMCP (`create_project`)
+2. ✅ **Register itself** as an agent (`register_agent`)
+3. ✅ **Start a work context** (`start_context`)
+4. ✅ **Get architecture recommendations** (`get_architecture_recommendation`)
+5. ✅ **Lock files** before editing (`lock_files`)
+6. ✅ **Save decisions** for technical choices (`save_decision`)
+7. ✅ **Log changes** after modifications (`log_change`)
+8. ✅ **Track tech stack** entries (`update_tech_stack`)
+
+All this happens automatically - you just code naturally!
+
+### Example Workflow
+
+```
+You: Create a todo app with React and Node.js
+
+OpenCode automatically:
+→ Creates project "Todo App" in CoordMCP
+→ Registers as agent "OpenCodeDev"
+→ Starts context: "Build todo app with React and Node.js"
+→ Gets architecture recommendations for MERN stack
+→ Locks files: src/App.jsx, server/index.js
+→ Saves decision: "Use React for frontend"
+→ Saves decision: "Use Express.js for backend"
+→ Updates tech stack: React, Node.js, Express
+→ Implements the app...
+→ Logs changes: Created App.jsx, Created server.js
+→ Unlocks files when done
+```
+
+### What Makes This Powerful
+
+**No Manual Tool Calls**: The enhanced tool descriptions and system prompts guide OpenCode to automatically use the right tools at the right time.
+
+**Automatic Coordination**: If multiple agents work on the same project, file locking prevents conflicts automatically.
+
+**Built-in Memory**: Every decision, change, and tech choice is recorded - no more forgetting why you chose React over Vue!
+
+**Architecture Guidance**: OpenCode automatically asks for architectural recommendations before implementing major features.
+
+### Configuration Details
+
+The `opencode-config.jsonc` file includes:
+
+- **MCP Server Configuration**: Points to your CoordMCP server
+- **System Prompt**: Guides OpenCode on when and how to use tools
+- **Mandatory Workflow**: Ensures proper initialization sequence
+- **Tool Descriptions**: Clear guidance on tool usage
+
+### Manual Configuration (Alternative)
+
+If you prefer manual setup, add this to your `~/.config/opencode/opencode.jsonc`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "coordmcp": {
+      "type": "local",
+      "command": ["python", "-m", "coordmcp.main"],
+      "enabled": true
+    }
+  },
+  "tools": {
+    "coordmcp_*": true
+  }
+}
+```
+
+Then copy the system prompt from `SYSTEM_PROMPT.md` into your OpenCode agent configuration.
+
+### Verification
+
+To verify everything is working:
+
+1. Start CoordMCP: `python -m coordmcp.main`
+2. Start OpenCode: `opencode`
+3. Type: "Create a test project"
+4. Watch the logs - you should see:
+   - Project created
+   - Agent registered
+   - Context started
+   - Tools being called automatically
+
+### Troubleshooting
+
+**OpenCode doesn't use CoordMCP tools:**
+- Ensure CoordMCP server is running
+- Check that `opencode-config.jsonc` is in the right location
+- Try restarting both services
+- Use explicit prompt: "Use coordmcp to create a project"
+
+**"Agent not found" errors:**
+- This is normal on first use - OpenCode will auto-register
+- If it persists, check the system prompt is loaded
+
+**File lock conflicts:**
+- Check `get_locked_files()` to see what's locked
+- Wait for other agents to unlock files
+- Or coordinate with other agents
+
+### Next Steps
+
+- Read the [System Prompt Guidelines](SYSTEM_PROMPT.md) for detailed configuration
+- Explore the [OpenCode Integration Guide](docs/INTEGRATIONS/opencode.md)
+- Check out [Example Workflows](docs/examples/)
+
 ## 📖 Documentation
 
 ### User Documentation

@@ -9,7 +9,7 @@ from uuid import uuid4
 from coordmcp.storage.base import StorageBackend
 from coordmcp.context.state import (
     AgentContext, AgentProfile, CurrentContext, 
-    ContextEntry, SessionLogEntry
+    ContextEntry, SessionLogEntry, AgentType, Priority, OperationType
 )
 from coordmcp.context.file_tracker import FileTracker
 from coordmcp.logger import get_logger
@@ -52,7 +52,7 @@ class ContextManager:
         registry = {}
         for agent_id, agent_data in data["agents"].items():
             try:
-                registry[agent_id] = AgentProfile.from_dict(agent_data)
+                registry[agent_id] = AgentProfile.parse_obj(agent_data)
             except Exception as e:
                 logger.warning(f"Failed to parse agent profile for {agent_id}: {e}")
         
@@ -63,7 +63,7 @@ class ContextManager:
         key = self._get_agent_registry_key()
         
         data = {
-            "agents": {agent_id: profile.to_dict() for agent_id, profile in registry.items()},
+            "agents": {agent_id: profile.dict() for agent_id, profile in registry.items()},
             "updated_at": datetime.now().isoformat()
         }
         
@@ -78,7 +78,7 @@ class ContextManager:
             return None
         
         try:
-            return AgentContext.from_dict(data)
+            return AgentContext.parse_obj(data)
         except Exception as e:
             logger.error(f"Failed to parse agent context for {agent_id}: {e}")
             return None
@@ -86,7 +86,7 @@ class ContextManager:
     def _save_agent_context(self, context: AgentContext) -> bool:
         """Save an agent's context."""
         key = self._get_agent_context_key(context.agent_id)
-        return self.backend.save(key, context.to_dict())
+        return self.backend.save(key, context.dict())
     
     # ==================== Agent Registration ====================
     
@@ -111,10 +111,16 @@ class ContextManager:
         """
         agent_id = str(uuid4())
         
+        # Convert string to enum
+        try:
+            agent_type_enum = AgentType(agent_type)
+        except ValueError:
+            agent_type_enum = AgentType.CUSTOM
+        
         profile = AgentProfile(
             agent_id=agent_id,
             agent_name=agent_name,
-            agent_type=agent_type,
+            agent_type=agent_type_enum,
             version=version,
             capabilities=capabilities or [],
             last_active=datetime.now(),
@@ -149,7 +155,12 @@ class ContextManager:
         if agent_id not in registry:
             return False
         
-        registry[agent_id].status = status
+        # Validate status
+        if status not in ["active", "inactive", "suspended"]:
+            logger.warning(f"Invalid status: {status}")
+            return False
+        
+        registry[agent_id].status = status  # type: ignore
         registry[agent_id].mark_active()
         
         self._save_agent_registry(registry)
@@ -199,223 +210,372 @@ class ContextManager:
         Raises:
             AgentNotFoundError: If agent not registered
         """
-        # Verify agent exists
-        agent = self.get_agent(agent_id)
-        if not agent:
-            raise AgentNotFoundError(f"Agent {agent_id} not found")
+        # Check if agent is registered
+        agent_profile = self.get_agent(agent_id)
+        if not agent_profile:
+            raise AgentNotFoundError(f"Agent {agent_id} not found. Please register first.")
         
-        # Load or create context
-        context = self._load_agent_context(agent_id)
+        # Convert priority string to enum
+        try:
+            priority_enum = Priority(priority)
+        except ValueError:
+            priority_enum = Priority.MEDIUM
         
-        if context is None:
-            # Create new context
-            session_id = str(uuid4())
-            context = AgentContext(
-                agent_id=agent_id,
-                agent_name=agent.agent_name,
-                agent_type=agent.agent_type,
-                session_id=session_id,
-                created_at=datetime.now()
-            )
-            
-            # Update agent stats
-            registry = self._load_agent_registry()
-            if agent_id in registry:
-                registry[agent_id].total_sessions += 1
-                registry[agent_id].add_project(project_id)
-                self._save_agent_registry(registry)
-        
-        # Set current context
-        context.current_context = CurrentContext(
+        # Create current context
+        current_context = CurrentContext(
             project_id=project_id,
             current_objective=objective,
             task_description=task_description,
-            priority=priority,
-            current_file=current_file,
-            started_at=datetime.now()
+            priority=priority_enum,
+            current_file=current_file
         )
         
-        # Log session event
-        context.add_session_log_entry(SessionLogEntry(
-            timestamp=datetime.now(),
-            event="context_started",
-            details={
-                "project_id": project_id,
-                "objective": objective,
-                "priority": priority
-            }
-        ))
+        # Load or create agent context
+        agent_context = self._load_agent_context(agent_id)
+        
+        if agent_context:
+            # End any existing context first
+            if agent_context.current_context:
+                self.end_context(agent_id)
+            
+            # Update context
+            agent_context.current_context = current_context
+            agent_context.add_session_log_entry(SessionLogEntry(
+                event="context_started",
+                details={
+                    "project_id": project_id,
+                    "objective": objective,
+                    "priority": priority
+                }
+            ))
+        else:
+            # Create new context
+            agent_context = AgentContext(
+                agent_id=agent_id,
+                agent_name=agent_profile.agent_name,
+                agent_type=agent_profile.agent_type,
+                session_id=str(uuid4()),
+                current_context=current_context
+            )
+            agent_context.add_session_log_entry(SessionLogEntry(
+                event="context_started",
+                details={
+                    "project_id": project_id,
+                    "objective": objective,
+                    "priority": priority
+                }
+            ))
+        
+        # Update agent profile
+        agent_profile.add_project(project_id)
+        agent_profile.increment_sessions()
+        agent_profile.mark_active()
+        
+        registry = self._load_agent_registry()
+        registry[agent_id] = agent_profile
+        self._save_agent_registry(registry)
         
         # Save context
-        self._save_agent_context(context)
+        self._save_agent_context(agent_context)
         
-        # Mark agent as active
-        agent.mark_active()
-        registry = self._load_agent_registry()
-        if agent_id in registry:
-            registry[agent_id].mark_active()
-            self._save_agent_registry(registry)
+        logger.info(f"Agent {agent_id} started context in project {project_id}: {objective}")
         
-        logger.info(f"Agent {agent_id} started context on project {project_id}: {objective}")
-        
-        return context
-    
-    def get_current_context(self, agent_id: str) -> Optional[CurrentContext]:
-        """Get an agent's current context."""
-        context = self._load_agent_context(agent_id)
-        if context:
-            return context.current_context
-        return None
+        return agent_context
     
     def end_context(self, agent_id: str) -> bool:
-        """End an agent's current context."""
-        context = self._load_agent_context(agent_id)
+        """
+        End the current context for an agent.
         
-        if not context or not context.current_context:
+        Args:
+            agent_id: Agent ID
+            
+        Returns:
+            True if successful
+        """
+        agent_context = self._load_agent_context(agent_id)
+        if not agent_context:
             return False
         
-        # Log end of context
-        context.add_session_log_entry(SessionLogEntry(
-            timestamp=datetime.now(),
+        if not agent_context.current_context:
+            logger.warning(f"Agent {agent_id} has no active context to end")
+            return False
+        
+        project_id = agent_context.current_context.project_id
+        
+        # Unlock all files in the project
+        locked_files = agent_context.get_locked_file_paths()
+        if locked_files:
+            try:
+                self.file_tracker.unlock_files(agent_id, project_id, locked_files)
+            except Exception as e:
+                logger.error(f"Error unlocking files for agent {agent_id}: {e}")
+        
+        # Log context end
+        agent_context.add_session_log_entry(SessionLogEntry(
             event="context_ended",
             details={
-                "project_id": context.current_context.project_id,
-                "objective": context.current_context.current_objective
+                "project_id": project_id,
+                "objective": agent_context.current_context.current_objective,
+                "duration_seconds": agent_context.current_context.get_duration().total_seconds()
             }
         ))
         
         # Clear current context
-        old_context = context.current_context
-        context.current_context = None
+        agent_context.current_context = None
+        agent_context.locked_files = []
         
-        # Unlock all files
-        if context.locked_files:
-            files_to_unlock = [lock.file_path for lock in context.locked_files]
-            self.file_tracker.unlock_files(agent_id, old_context.project_id, files_to_unlock)
-            context.locked_files = []
+        self._save_agent_context(agent_context)
         
-        # Save context
-        self._save_agent_context(context)
-        
-        logger.info(f"Agent {agent_id} ended context")
+        logger.info(f"Agent {agent_id} ended context in project {project_id}")
         
         return True
     
     def switch_context(
         self,
         agent_id: str,
-        to_project_id: str,
-        to_objective: str,
+        new_project_id: str,
+        new_objective: str,
         task_description: str = "",
-        priority: str = "medium"
+        priority: str = "medium",
+        current_file: str = ""
     ) -> AgentContext:
         """
-        Switch agent context between projects or objectives.
+        Switch agent from one context to another.
         
         Args:
             agent_id: Agent ID
-            to_project_id: Target project ID
-            to_objective: New objective
+            new_project_id: New project ID
+            new_objective: New objective
             task_description: New task description
             priority: Priority level
+            current_file: Current file
             
         Returns:
             Updated AgentContext
         """
         # End current context
-        old_context = self.get_current_context(agent_id)
-        if old_context:
-            # Unlock files in old project
-            context = self._load_agent_context(agent_id)
-            if context and context.locked_files:
-                files_to_unlock = [lock.file_path for lock in context.locked_files]
-                self.file_tracker.unlock_files(agent_id, old_context.project_id, files_to_unlock)
-                context.locked_files = []
-                self._save_agent_context(context)
-            
-            self.end_context(agent_id)
+        self.end_context(agent_id)
         
         # Start new context
         return self.start_context(
             agent_id=agent_id,
-            project_id=to_project_id,
-            objective=to_objective,
+            project_id=new_project_id,
+            objective=new_objective,
             task_description=task_description,
-            priority=priority
+            priority=priority,
+            current_file=current_file
         )
     
-    def get_context_history(self, agent_id: str, limit: int = 10) -> List[ContextEntry]:
-        """Get recent context entries for an agent."""
-        context = self._load_agent_context(agent_id)
-        if not context:
-            return []
-        
-        return context.recent_context[-limit:]
+    def get_context(self, agent_id: str) -> Optional[AgentContext]:
+        """Get an agent's current context."""
+        return self._load_agent_context(agent_id)
     
-    def get_session_log(self, agent_id: str, limit: int = 50) -> List[SessionLogEntry]:
-        """Get session log for an agent."""
+    def get_current_context(self, agent_id: str) -> Optional[CurrentContext]:
+        """Get an agent's current context info only."""
         context = self._load_agent_context(agent_id)
-        if not context:
-            return []
-        
-        return context.session_log[-limit:]
-    
-    # ==================== Context Operations ====================
+        if context:
+            return context.current_context
+        return None
     
     def add_context_entry(
         self,
         agent_id: str,
         file: str,
         operation: str,
-        summary: str
+        summary: str = ""
     ) -> bool:
         """
-        Add a context entry for an agent.
+        Add a context entry for file operations.
         
         Args:
             agent_id: Agent ID
-            file: File being operated on
-            operation: Operation type (read, write, analyze)
+            file: File path
+            operation: Operation type (read, write, analyze, delete)
             summary: Brief summary
             
         Returns:
             True if successful
         """
-        context = self._load_agent_context(agent_id)
-        
-        if not context:
+        agent_context = self._load_agent_context(agent_id)
+        if not agent_context:
             return False
         
+        # Convert operation string to enum
+        try:
+            operation_enum = OperationType(operation)
+        except ValueError:
+            operation_enum = OperationType.READ
+        
         entry = ContextEntry(
-            timestamp=datetime.now(),
             file=file,
-            operation=operation,
+            operation=operation_enum,
             summary=summary
         )
         
-        context.add_context_entry(entry)
-        self._save_agent_context(context)
+        agent_context.add_context_entry(entry)
+        self._save_agent_context(agent_context)
         
         return True
     
-    def get_agent_context_full(self, agent_id: str) -> Optional[AgentContext]:
-        """Get complete agent context."""
-        return self._load_agent_context(agent_id)
+    def lock_files(
+        self,
+        agent_id: str,
+        files: List[str],
+        reason: str = "",
+        expected_duration_minutes: Optional[int] = None
+    ) -> Dict:
+        """
+        Lock files for an agent.
+        
+        Args:
+            agent_id: Agent ID
+            files: List of file paths
+            reason: Reason for locking
+            expected_duration_minutes: Expected duration in minutes
+            
+        Returns:
+            Dictionary with lock results
+        """
+        agent_context = self._load_agent_context(agent_id)
+        if not agent_context:
+            return {"success": False, "error": "Agent context not found"}
+        
+        if not agent_context.current_context:
+            return {"success": False, "error": "Agent has no active context"}
+        
+        project_id = agent_context.current_context.project_id
+        
+        # Calculate expected unlock time
+        expected_unlock_time = None
+        if expected_duration_minutes:
+            expected_unlock_time = datetime.now() + __import__('datetime').timedelta(minutes=expected_duration_minutes)
+        
+        try:
+            result = self.file_tracker.lock_files(
+                agent_id=agent_id,
+                project_id=project_id,
+                files=files,
+                reason=reason,
+                expected_unlock_time=expected_unlock_time
+            )
+            
+            # Update agent context
+            if result.get("success"):
+                from coordmcp.context.state import LockInfo
+                for file_path in result.get("locked_files", []):
+                    lock_info = LockInfo(
+                        file_path=file_path,
+                        locked_by=agent_id,
+                        reason=reason,
+                        expected_unlock_time=expected_unlock_time
+                    )
+                    agent_context.lock_file(lock_info)
+                
+                self._save_agent_context(agent_context)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error locking files for agent {agent_id}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def unlock_files(self, agent_id: str, files: List[str]) -> Dict:
+        """
+        Unlock files for an agent.
+        
+        Args:
+            agent_id: Agent ID
+            files: List of file paths
+            
+        Returns:
+            Dictionary with unlock results
+        """
+        agent_context = self._load_agent_context(agent_id)
+        if not agent_context:
+            return {"success": False, "error": "Agent context not found"}
+        
+        if not agent_context.current_context:
+            return {"success": False, "error": "Agent has no active context"}
+        
+        project_id = agent_context.current_context.project_id
+        
+        try:
+            result = self.file_tracker.unlock_files(
+                agent_id=agent_id,
+                project_id=project_id,
+                files=files
+            )
+            
+            # Update agent context
+            if result.get("success"):
+                for file_path in result.get("unlocked_files", []):
+                    agent_context.unlock_file(file_path)
+                
+                self._save_agent_context(agent_context)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error unlocking files for agent {agent_id}: {e}")
+            return {"success": False, "error": str(e)}
     
     def get_agents_in_project(self, project_id: str) -> List[Dict]:
-        """Get all agents currently working in a project."""
+        """
+        Get all agents working in a project.
+        
+        Args:
+            project_id: Project ID
+            
+        Returns:
+            List of agent summaries
+        """
         agents = []
         
-        for agent_profile in self.get_all_agents():
-            context = self._load_agent_context(agent_profile.agent_id)
-            if context and context.current_context:
-                if context.current_context.project_id == project_id:
-                    agents.append({
-                        "agent_id": agent_profile.agent_id,
-                        "agent_name": agent_profile.agent_name,
-                        "agent_type": agent_profile.agent_type,
-                        "current_objective": context.current_context.current_objective,
-                        "locked_files_count": len(context.locked_files)
-                    })
+        for profile in self.get_all_agents():
+            context = self._load_agent_context(profile.agent_id)
+            
+            if context and context.current_context and context.current_context.project_id == project_id:
+                agents.append({
+                    "agent_id": profile.agent_id,
+                    "agent_name": profile.agent_name,
+                    "current_objective": context.current_context.current_objective,
+                    "locked_files_count": len(context.locked_files)
+                })
         
         return agents
+    
+    def get_context_history(self, agent_id: str, limit: int = 10) -> List[ContextEntry]:
+        """
+        Get recent context history (file operations) for an agent.
+        Returns entries in reverse chronological order (newest first).
+        
+        Args:
+            agent_id: Agent ID
+            limit: Maximum number of entries to return
+            
+        Returns:
+            List of context entries
+        """
+        agent_context = self._load_agent_context(agent_id)
+        if not agent_context:
+            return []
+        
+        # Return last N entries in reverse order (newest first)
+        return agent_context.recent_context[-limit:][::-1]
+    
+    def get_session_log(self, agent_id: str, limit: int = 50) -> List[SessionLogEntry]:
+        """
+        Get session log for an agent.
+        
+        Args:
+            agent_id: Agent ID
+            limit: Maximum number of entries to return
+            
+        Returns:
+            List of session log entries
+        """
+        agent_context = self._load_agent_context(agent_id)
+        if not agent_context:
+            return []
+        
+        return agent_context.session_log[:limit]

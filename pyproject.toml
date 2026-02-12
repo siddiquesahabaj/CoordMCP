@@ -49,3 +49,12 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
+timeout = 60  # 60 second timeout for all tests
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "e2e: End-to-end tests",
+    "performance: Performance tests",
+    "slow: Slow tests",
+    "timeout(seconds): Set timeout for specific tests"
+]

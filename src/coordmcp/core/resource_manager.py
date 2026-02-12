@@ -6,7 +6,6 @@ Resources provide read-only access to project data via MCP resource URIs.
 """
 
 from fastmcp import FastMCP
-
 from coordmcp.resources.project_resources import handle_project_resource
 from coordmcp.resources.agent_resources import handle_agent_resource
 from coordmcp.resources.architecture_resources import handle_architecture_resource

@@ -29,11 +29,27 @@ class JSONStorageBackend(StorageBackend):
         logger.info(f"JSON storage initialized at {self.base_dir}")
     
     def _get_file_path(self, key: str) -> Path:
-        """Convert key to file path."""
+        """Convert key to file path with security validation."""
+        import re
+        
+        # Security: Prevent path traversal attacks
+        if ".." in key or key.startswith("/") or key.startswith("\\"):
+            raise ValueError(f"Invalid key contains path traversal attempt: {key}")
+        
+        # Security: Sanitize key to prevent directory traversal
+        # Only allow alphanumeric characters, hyphens, underscores, and forward slashes
+        if not re.match(r'^[\w\-/]+$', key):
+            raise ValueError(f"Invalid key format. Key must contain only alphanumeric characters, hyphens, underscores, and forward slashes: {key}")
+        
         # Replace path separators with underscores for flat storage
         # Or use nested directories if key contains slashes
         if "/" in key:
             parts = key.split("/")
+            # Validate each part
+            for part in parts[:-1]:
+                if not part or part in ('.', '..'):
+                    raise ValueError(f"Invalid directory component in key: {key}")
+            
             dir_path = self.base_dir / "/".join(parts[:-1])
             dir_path.mkdir(parents=True, exist_ok=True)
             return dir_path / f"{parts[-1]}.json"
@@ -42,6 +58,15 @@ class JSONStorageBackend(StorageBackend):
     def save(self, key: str, data: Dict[str, Any]) -> bool:
         """Save data to JSON file with atomic write."""
         try:
+            # Validate inputs
+            if not isinstance(key, str) or not key.strip():
+                logger.error("Invalid key: key must be a non-empty string")
+                return False
+            
+            if not isinstance(data, dict):
+                logger.error("Invalid data: data must be a dictionary")
+                return False
+            
             file_path = self._get_file_path(key)
             temp_path = file_path.with_suffix('.tmp')
             
@@ -52,11 +77,14 @@ class JSONStorageBackend(StorageBackend):
             # Rename temp file to actual file (atomic on most systems)
             os.replace(temp_path, file_path)
             
-            logger.debug(f"Saved data to {file_path}")
+            logger.debug(f"Saved data for key '{key}'")
             return True
             
+        except ValueError as e:
+            # Re-raise validation errors
+            raise
         except Exception as e:
-            logger.error(f"Error saving data for key '{key}': {e}")
+            logger.error(f"Error saving data for key '{key}': {type(e).__name__}")
             return False
     
     def load(self, key: str) -> Optional[Dict[str, Any]]:
@@ -71,29 +99,40 @@ class JSONStorageBackend(StorageBackend):
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            logger.debug(f"Loaded data from {file_path}")
+            logger.debug(f"Loaded data for key '{key}'")
             return data
             
         except json.JSONDecodeError as e:
-            logger.error(f"Corrupted JSON for key '{key}': {e}")
+            logger.error(f"Corrupted JSON data for key '{key}': {e}")
             return None
+        except ValueError as e:
+            # Re-raise validation errors
+            raise
         except Exception as e:
-            logger.error(f"Error loading data for key '{key}': {e}")
+            logger.error(f"Error loading data for key '{key}': {type(e).__name__}")
             return None
     
     def delete(self, key: str) -> bool:
         """Delete JSON file."""
         try:
+            # Validate input
+            if not isinstance(key, str) or not key.strip():
+                logger.error("Invalid key: key must be a non-empty string")
+                return False
+            
             file_path = self._get_file_path(key)
             
             if file_path.exists():
                 file_path.unlink()
-                logger.debug(f"Deleted file {file_path}")
+                logger.debug(f"Deleted data for key '{key}'")
             
             return True
             
+        except ValueError as e:
+            # Re-raise validation errors
+            raise
         except Exception as e:
-            logger.error(f"Error deleting data for key '{key}': {e}")
+            logger.error(f"Error deleting data for key '{key}': {type(e).__name__}")
             return False
     
     def exists(self, key: str) -> bool:

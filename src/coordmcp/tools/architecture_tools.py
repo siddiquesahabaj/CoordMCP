@@ -132,13 +132,13 @@ async def update_architecture(
         from datetime import datetime
         from uuid import uuid4
         
+        from coordmcp.memory.models import ChangeType, ArchitectureImpact
         change = Change(
             id=str(uuid4()),
-            timestamp=datetime.now(),
             file_path="architecture",
-            change_type="modify",
+            change_type=ChangeType.MODIFY,
             description=f"Implemented architecture recommendation {recommendation_id}: {implementation_summary}",
-            architecture_impact="significant",
+            architecture_impact=ArchitectureImpact.SIGNIFICANT,
             code_summary=f"Files created: {len(actual_files_created)}, Files modified: {len(actual_files_modified)}"
         )
         

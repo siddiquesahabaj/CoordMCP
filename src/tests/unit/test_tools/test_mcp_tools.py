@@ -1,0 +1,411 @@
+"""
+Comprehensive tests for MCP Tools with realistic scenarios.
+
+These tests verify all MCP tool functions work correctly with:
+- Pydantic model validation
+- Realistic test scenarios
+- Error handling
+- Concurrent operations
+"""
+
+import pytest
+from datetime import datetime
+from unittest.mock import Mock, patch
+from coordmcp.tools.memory_tools import (
+    create_project, get_project_info, save_decision,
+    get_project_decisions, search_decisions, update_tech_stack,
+    get_tech_stack, log_change, get_recent_changes,
+    update_file_metadata, get_file_dependencies, get_module_info
+)
+from coordmcp.tools.context_tools import (
+    register_agent, get_agents_list, get_agent_profile,
+    start_context, get_agent_context, switch_context, end_context,
+    lock_files, unlock_files, get_locked_files,
+    get_context_history, get_session_log, get_agents_in_project
+)
+from coordmcp.memory.models import (
+    DecisionStatus, ChangeType, FileType, Complexity
+)
+
+
+@pytest.mark.unit
+@pytest.mark.tools
+class TestProjectTools:
+    """Test project management tools."""
+    
+    @pytest.mark.asyncio
+    async def test_create_project_success(self):
+        """Test successful project creation."""
+        result = await create_project(
+            project_name="E-commerce Platform",
+            description="A full-stack e-commerce solution"
+        )
+        
+        assert result["success"] is True
+        assert "project_id" in result
+        assert result["message"] == "Project 'E-commerce Platform' created successfully"
+    
+    @pytest.mark.asyncio
+    async def test_create_project_validation_error(self):
+        """Test project creation with invalid data."""
+        # Empty name should fail validation
+        result = await create_project(
+            project_name="",  # Invalid - empty
+            description="Description"
+        )
+        
+        assert result["success"] is False
+        assert "error" in result
+    
+    @pytest.mark.asyncio
+    async def test_get_project_info_success(self, sample_project_id):
+        """Test getting project info."""
+        result = await get_project_info(sample_project_id)
+        
+        assert result["success"] is True
+        assert "project" in result
+        assert result["project"]["project_name"] == "Test Project"
+    
+    @pytest.mark.asyncio
+    async def test_get_project_info_not_found(self):
+        """Test getting non-existent project."""
+        result = await get_project_info("non-existent-id")
+        
+        assert result["success"] is False
+        assert result["error_type"] == "ProjectNotFound"
+
+
+@pytest.mark.unit
+@pytest.mark.tools
+class TestDecisionTools:
+    """Test decision management tools."""
+    
+    @pytest.mark.asyncio
+    async def test_save_decision_success(self, sample_project_id):
+        """Test saving a decision with full details."""
+        result = await save_decision(
+            project_id=sample_project_id,
+            title="Use FastAPI for Backend",
+            description="FastAPI provides excellent performance and automatic API documentation generation",
+            rationale="Need high-performance async framework with modern Python features",
+            context="API layer needs to handle 10k+ concurrent requests",
+            impact="High - affects entire backend architecture",
+            tags=["backend", "api", "fastapi", "async"],
+            related_files=["src/api/main.py", "src/api/routes.py"],
+            author_agent="backend-agent-1"
+        )
+        
+        assert result["success"] is True
+        assert "decision_id" in result
+    
+    @pytest.mark.asyncio
+    async def test_save_decision_validation_error(self, sample_project_id):
+        """Test saving decision with invalid data."""
+        result = await save_decision(
+            project_id=sample_project_id,
+            title="Ab",  # Too short - should fail min_length=3
+            description="Short",
+            rationale="Test"
+        )
+        
+        assert result["success"] is False
+        assert "error" in result
+    
+    @pytest.mark.asyncio
+    async def test_search_decisions_by_query(self, sample_project_id):
+        """Test searching decisions with query."""
+        # First save a decision
+        await save_decision(
+            project_id=sample_project_id,
+            title="Use PostgreSQL Database",
+            description="Reliable relational database for transactional data",
+            rationale="ACID compliance and strong consistency needed"
+        )
+        
+        # Search for it
+        result = await search_decisions(sample_project_id, "PostgreSQL")
+        
+        assert result["success"] is True
+        assert len(result["decisions"]) == 1
+        assert result["decisions"][0]["title"] == "Use PostgreSQL Database"
+    
+    @pytest.mark.asyncio
+    async def test_search_decisions_with_tags(self, sample_project_id):
+        """Test searching decisions filtered by tags."""
+        # Save multiple decisions
+        await save_decision(
+            project_id=sample_project_id,
+            title="Backend Decision",
+            description="This is a backend test decision",
+            rationale="Backend is important",
+            tags=["backend"]
+        )
+        await save_decision(
+            project_id=sample_project_id,
+            title="Frontend Decision",
+            description="This is a frontend test decision",
+            rationale="Frontend is important",
+            tags=["frontend"]
+        )
+        
+        # Search with tag filter
+        result = await search_decisions(
+            project_id=sample_project_id,
+            query="Decision",
+            tags=["backend"]
+        )
+        
+        assert result["success"] is True
+        assert len(result["decisions"]) == 1
+        assert result["decisions"][0]["title"] == "Backend Decision"
+
+
+@pytest.mark.unit
+@pytest.mark.tools
+class TestChangeLogTools:
+    """Test change logging tools."""
+    
+    @pytest.mark.asyncio
+    async def test_log_change_with_metadata(self, sample_project_id):
+        """Test logging a change with full metadata."""
+        result = await log_change(
+            project_id=sample_project_id,
+            file_path="src/auth/login.py",
+            change_type="modify",
+            description="Added JWT token validation",
+            agent_id="security-agent",
+            code_summary="Implemented token verification middleware",
+            architecture_impact="minor",
+            related_decision="auth-arch-decision"
+        )
+        
+        assert result["success"] is True
+        assert "change_id" in result
+    
+    @pytest.mark.asyncio
+    async def test_get_recent_changes_filtered(self, sample_project_id):
+        """Test getting recent changes with filters."""
+        # Log changes with different impacts
+        await log_change(
+            project_id=sample_project_id,
+            file_path="src/main.py",
+            change_type="modify",
+            description="Minor fix",
+            architecture_impact="none"
+        )
+        await log_change(
+            project_id=sample_project_id,
+            file_path="src/core.py",
+            change_type="modify",
+            description="Major refactor",
+            architecture_impact="significant"
+        )
+        
+        # Get only significant changes
+        result = await get_recent_changes(
+            project_id=sample_project_id,
+            limit=10,
+            architecture_impact_filter="significant"
+        )
+        
+        assert result["success"] is True
+        assert len(result["changes"]) == 1
+        assert result["changes"][0]["architecture_impact"] == "significant"
+
+
+@pytest.mark.unit
+@pytest.mark.tools
+class TestAgentTools:
+    """Test agent management tools."""
+    
+    @pytest.mark.asyncio
+    async def test_register_agent_with_capabilities(self):
+        """Test registering an agent with specific capabilities."""
+        result = await register_agent(
+            agent_name="Backend Specialist",
+            agent_type="opencode",
+            capabilities=["python", "fastapi", "sqlalchemy", "postgresql"],
+            version="1.2.0"
+        )
+        
+        assert result["success"] is True
+        assert "agent_id" in result
+    
+    @pytest.mark.asyncio
+    async def test_get_agents_list_filtered(self):
+        """Test getting filtered agent list."""
+        # Register agents with different types
+        await register_agent("Backend Agent", "opencode")
+        await register_agent("Frontend Agent", "cursor")
+        
+        # Get all agents
+        result = await get_agents_list(status="all")
+        
+        assert result["success"] is True
+        assert result["count"] >= 2
+    
+    @pytest.mark.asyncio
+    async def test_start_context_full_workflow(self, sample_project_id):
+        """Test full context start workflow."""
+        # Register agent
+        agent_result = await register_agent("Workflow Agent", "opencode")
+        agent_id = agent_result["agent_id"]
+        
+        # Start context
+        result = await start_context(
+            agent_id=agent_id,
+            project_id=sample_project_id,
+            objective="Implement user authentication",
+            task_description="Create JWT-based authentication system with refresh tokens",
+            priority="high",
+            current_file="src/auth/main.py"
+        )
+        
+        assert result["success"] is True
+        assert "context" in result
+        assert result["context"]["current_context"]["current_objective"] == "Implement user authentication"
+
+
+@pytest.mark.unit
+@pytest.mark.tools
+class TestFileLockingTools:
+    """Test file locking and coordination tools."""
+    
+    @pytest.mark.asyncio
+    async def test_lock_files_success(self, sample_project_id):
+        """Test successful file locking."""
+        # Register agent
+        agent_result = await register_agent("Lock Test Agent", "opencode")
+        agent_id = agent_result["agent_id"]
+        
+        # Lock files
+        result = await lock_files(
+            agent_id=agent_id,
+            project_id=sample_project_id,
+            files=["src/main.py", "src/utils.py"],
+            reason="Refactoring authentication logic",
+            expected_duration_minutes=60
+        )
+        
+        assert result["success"] is True
+        assert len(result["locked_files"]) == 2
+    
+    @pytest.mark.asyncio
+    async def test_lock_files_conflict(self, sample_project_id):
+        """Test file locking conflict detection."""
+        # Register two agents
+        agent1_result = await register_agent("Agent 1", "opencode")
+        agent2_result = await register_agent("Agent 2", "cursor")
+        agent1_id = agent1_result["agent_id"]
+        agent2_id = agent2_result["agent_id"]
+        
+        # Agent 1 locks file
+        await lock_files(
+            agent_id=agent1_id,
+            project_id=sample_project_id,
+            files=["src/conflict.py"],
+            reason="Working on it"
+        )
+        
+        # Agent 2 tries to lock same file
+        result = await lock_files(
+            agent_id=agent2_id,
+            project_id=sample_project_id,
+            files=["src/conflict.py"],
+            reason="Also need it"
+        )
+        
+        assert result["success"] is False
+        assert result["error_type"] == "FileLockConflict"
+        assert len(result["conflicts"]) == 1
+
+
+@pytest.mark.unit
+@pytest.mark.tools
+class TestRealisticScenarios:
+    """Test realistic multi-agent scenarios."""
+    
+    @pytest.mark.asyncio
+    async def test_full_development_workflow(self, sample_project_id):
+        """Test a complete development workflow with multiple agents."""
+        # 1. Architecture agent makes initial decisions
+        arch_agent = await register_agent(
+            "Architecture Agent",
+            "claude_code",
+            capabilities=["architecture", "system-design"]
+        )
+        
+        await save_decision(
+            project_id=sample_project_id,
+            title="Microservices Architecture",
+            description="Adopt microservices pattern for scalability",
+            rationale="Need to scale individual services independently",
+            author_agent=arch_agent["agent_id"]
+        )
+        
+        # 2. Backend agent starts implementing
+        backend_agent = await register_agent(
+            "Backend Agent",
+            "opencode",
+            capabilities=["python", "fastapi", "postgresql"]
+        )
+        
+        await start_context(
+            agent_id=backend_agent["agent_id"],
+            project_id=sample_project_id,
+            objective="Implement API gateway",
+            priority="high"
+        )
+        
+        # Lock files for implementation
+        await lock_files(
+            agent_id=backend_agent["agent_id"],
+            project_id=sample_project_id,
+            files=["src/gateway/main.py", "src/gateway/routes.py"],
+            reason="Implementing API gateway"
+        )
+        
+        # Log changes
+        await log_change(
+            project_id=sample_project_id,
+            file_path="src/gateway/main.py",
+            change_type="create",
+            description="Created API gateway entry point",
+            agent_id=backend_agent["agent_id"]
+        )
+        
+        # 3. Frontend agent starts in parallel
+        frontend_agent = await register_agent(
+            "Frontend Agent",
+            "cursor",
+            capabilities=["react", "typescript", "tailwind"]
+        )
+        
+        await start_context(
+            agent_id=frontend_agent["agent_id"],
+            project_id=sample_project_id,
+            objective="Build admin dashboard",
+            priority="medium"
+        )
+        
+        # 4. Verify coordination
+        agents_result = await get_agents_in_project(sample_project_id)
+        assert agents_result["count"] == 2
+        
+        # 5. Verify locked files tracked
+        locked_result = await get_locked_files(sample_project_id)
+        assert locked_result["total_locked"] == 2
+        
+        # 6. Backend completes and unlocks
+        await unlock_files(
+            agent_id=backend_agent["agent_id"],
+            project_id=sample_project_id,
+            files=["src/gateway/main.py", "src/gateway/routes.py"]
+        )
+        
+        locked_result = await get_locked_files(sample_project_id)
+        assert locked_result["total_locked"] == 0
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
