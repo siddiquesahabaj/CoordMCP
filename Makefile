@@ -1,7 +1,22 @@
 # CoordMCP Makefile
 # Development commands for CoordMCP
+# Works on Unix-like systems (Linux, macOS, WSL)
+# For Windows native, use: python scripts/cleanup.py
 
-.PHONY: help install dev test test-unit test-integration test-all lint format clean run docs
+.PHONY: help install dev test test-unit test-integration test-all clean build release lint format docs
+
+# Detect OS
+ifeq ($(OS),Windows_NT)
+    PYTHON = python
+    RM = del /Q
+    RMDIR = rmdir /S /Q
+    SEP = \
+else
+    PYTHON = python3
+    RM = rm -f
+    RMDIR = rm -rf
+    SEP = /
+endif
 
 # Default target
 help:
@@ -20,103 +35,151 @@ help:
 	@echo "Development:"
 	@echo "  make run          - Run the server"
 	@echo "  make clean        - Clean build artifacts"
+	@echo "  make build        - Build package for PyPI"
+	@echo "  make release      - Full release process (clean, test, build)"
+	@echo ""
+	@echo "Code Quality:"
 	@echo "  make lint         - Run linter"
 	@echo "  make format       - Format code"
 	@echo ""
-	@echo "Examples:"
-	@echo "  make example-basic      - Run basic example"
-	@echo "  make example-multi      - Run multi-agent example"
-	@echo "  make example-arch       - Run architecture example"
-	@echo "  make example-context    - Run context switching example"
+	@echo "PyPI Release:"
+	@echo "  make pypi-test    - Upload to Test PyPI"
+	@echo "  make pypi-release - Upload to Production PyPI"
+	@echo ""
+	@echo "Platform-specific:"
+	@echo "  Windows: Use 'python scripts/cleanup.py' for cleanup"
+	@echo "  Unix:    Use 'make clean' or 'bash scripts/cleanup.sh'"
 
 # Setup
 install:
-	pip install -e .
+	$(PYTHON) -m pip install -e .
 
 dev:
-	pip install -e ".[dev]"
+	$(PYTHON) -m pip install -e ".[dev]"
 
 # Testing
 test: test-all
 
 test-all:
-	python -m pytest src/tests/ -v
+	$(PYTHON) -m pytest src/tests/ -v
 
 test-unit:
-	python -m pytest src/tests/unit/ -v
+	$(PYTHON) -m pytest src/tests/unit/ -v -m unit
 
 test-integration:
-	python -m pytest src/tests/integration/ -v
+	$(PYTHON) -m pytest src/tests/integration/ -v -m integration
 
-# Individual test suites
-test-unit-memory:
-	python -m pytest src/tests/unit/test_memory/ -v
-
-test-unit-context:
-	python -m pytest src/tests/unit/test_context/ -v
-
-test-unit-architecture:
-	python -m pytest src/tests/unit/test_architecture/ -v
-
-test-full:
-	python src/tests/integration/test_full_integration.py
+test-e2e:
+	$(PYTHON) -m pytest src/tests/e2e/ -v -m e2e
 
 # Development
 run:
-	python -m coordmcp.main
+	$(PYTHON) -m coordmcp.main
 
 run-dev:
-	COORDMCP_LOG_LEVEL=DEBUG python -m coordmcp.main
+	COORDMCP_LOG_LEVEL=DEBUG $(PYTHON) -m coordmcp.main
 
+# Cross-platform clean
 clean:
-	# Clean Python cache files
-	python -c "import shutil, pathlib, sys; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__') if p.is_dir()]; [p.unlink() for p in pathlib.Path('.').rglob('*.py[co]') if p.is_file()]; sys.exit(0)" 2>/dev/null || true
-	# Clean build artifacts
-	rm -rf build/ dist/ *.egg-info/
-	# Clean pytest cache
-	rm -rf .pytest_cache/ src/tests/.pytest_cache/
+	@echo "Running cross-platform cleanup..."
+	$(PYTHON) scripts/cleanup.py
 
-# Examples
-example-basic:
-	python examples/basic_project_setup.py
+# Build package
+build: clean
+	@echo "Building package..."
+	$(PYTHON) -m build
+	@echo "Build complete. Check dist/ directory."
 
-example-multi:
-	python examples/multi_agent_workflow.py
+# Verify build
+verify:
+	@echo "Verifying package..."
+	$(PYTHON) scripts/cleanup.py --check
+	@echo ""
+	@echo "Package contents:"
+	ls -la dist/
 
-example-arch:
-	python examples/architecture_recommendation.py
+# Full release process
+release: clean test build verify
+	@echo ""
+	@echo "=========================================="
+	@echo "Release package ready in dist/"
+	@echo "=========================================="
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Test with: make pypi-test"
+	@echo "  2. Release with: make pypi-release"
+	@echo ""
 
-example-context:
-	python examples/context_switching.py
+# PyPI Uploads
+pypi-test: build
+	@echo "Uploading to Test PyPI..."
+	$(PYTHON) -m twine upload --repository testpypi dist/*
+	@echo ""
+	@echo "Test installation:"
+	@echo "  pip install --index-url https://test.pypi.org/simple/ coordmcp"
 
-# Code quality (if tools are installed)
+pypi-release: build
+	@echo "Uploading to Production PyPI..."
+	$(PYTHON) -m twine upload dist/*
+	@echo ""
+	@echo "Installation:"
+	@echo "  pip install coordmcp"
+
+# Code quality
 lint:
 	@echo "Running linter..."
-	@which flake8 > /dev/null 2>&1 && flake8 src/coordmcp/ || echo "flake8 not installed"
+	@which flake8 > /dev/null 2>&1 && flake8 src/coordmcp/ || echo "flake8 not installed. Install with: pip install flake8"
 
 format:
 	@echo "Formatting code..."
-	@which black > /dev/null 2>&1 && black src/coordmcp/ || echo "black not installed"
+	@which black > /dev/null 2>&1 && black src/coordmcp/ || echo "black not installed. Install with: pip install black"
 
-# Data management
-clean-data:
-	rm -rf ~/.coordmcp/data/*
-	@echo "Data directory cleaned"
+format-check:
+	@echo "Checking code formatting..."
+	@which black > /dev/null 2>&1 && black --check src/coordmcp/ || echo "black not installed"
 
-view-logs:
-	@cat ~/.coordmcp/logs/coordmcp.log 2>/dev/null || echo "No logs found"
+# Type checking
+typecheck:
+	@echo "Running type checker..."
+	@which mypy > /dev/null 2>&1 && mypy src/coordmcp/ || echo "mypy not installed. Install with: pip install mypy"
+
+# Security check
+security:
+	@echo "Running security check..."
+	@which bandit > /dev/null 2>&1 && bandit -r src/coordmcp/ || echo "bandit not installed. Install with: pip install bandit"
 
 # Documentation
 docs:
 	@echo "Documentation is in docs/ directory"
 	@ls -la docs/
 
-# Release
-build:
-	python -m build
+# Data management
+clean-data:
+	$(RMDIR) ~/.coordmcp/data/*
+	@echo "Data directory cleaned"
 
-# Help for Windows users (PowerShell)
+view-logs:
+	@cat ~/.coordmcp/logs/coordmcp.log 2>/dev/null || echo "No logs found"
+
+# Version bump (manual)
+bump-version:
+	@echo "Current version:"
+	@git describe --tags --abbrev=0 2>/dev/null || echo "No tags yet"
+	@echo ""
+	@echo "To bump version:"
+	@echo "  git tag v0.1.1"
+	@echo "  git push origin v0.1.1"
+
+# Install release dependencies
+install-release:
+	$(PYTHON) -m pip install build twine
+
+# Help for Windows users
 windows-help:
-	@echo "For Windows PowerShell, use:"
+	@echo "For Windows users:"
+	@echo "  Use PowerShell or CMD with Python commands:"
 	@echo "  python -m coordmcp.main"
-	@echo "  python src/tests/test_memory_system.py"
+	@echo "  python scripts/cleanup.py"
+	@echo "  python -m build"
+	@echo ""
+	@echo "Or use Git Bash/WSL to run Makefile commands"

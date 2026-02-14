@@ -3,17 +3,25 @@ include LICENSE
 include CHANGELOG.md
 include SECURITY.md
 include CONTRIBUTING.md
+include QUICK_REFERENCE.md
+include SYSTEM_PROMPT.md
 recursive-include src/coordmcp *.py
 
+# Exclude directories
 exclude docs/**
 exclude tests/**
 exclude .github/**
+exclude scripts/**
+exclude examples/**
+
+# Exclude files
 exclude .gitignore
 exclude .env
 exclude .env.example
 exclude Makefile
 exclude opencode-config.jsonc
-exclude SYSTEM_PROMPT.md
+
+# Exclude Python cache
 exclude venv/**
 exclude .pytest_cache/**
 exclude **/__pycache__/**

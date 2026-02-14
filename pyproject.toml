@@ -12,20 +12,31 @@ license = "MIT"
 authors = [
     {name = "CoordMCP Team"}
 ]
-keywords = ["mcp", "fastmcp", "agents", "coordination", "coding"]
+keywords = ["mcp", "fastmcp", "agents", "coordination", "coding", "multi-agent", "context-protocol"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Tools",
+    "Typing :: Typed",
 ]
 dependencies = [
     "fastmcp>=0.4.0",
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/siddiquesahabaj/coordmcp"
+Repository = "https://github.com/siddiquesahabaj/coordmcp"
+Documentation = "https://github.com/siddiquesahabaj/coordmcp/tree/main/docs"
+Changelog = "https://github.com/siddiquesahabaj/coordmcp/blob/main/CHANGELOG.md"
+Issues = "https://github.com/siddiquesahabaj/coordmcp/issues"
 
 [project.optional-dependencies]
 dev = [
