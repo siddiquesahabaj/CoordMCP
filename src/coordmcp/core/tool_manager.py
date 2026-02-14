@@ -69,7 +69,7 @@ def _register_memory_tools(server: FastMCP) -> None:
     # ==================== Project Tools ====================
     
     @server.tool()
-    async def create_project(project_name: str, description: str = ""):
+    async def create_project(project_name: str, workspace_path: str, description: str = ""):
         """
         MANDATORY STEP 1: Create a new project in the memory system before starting any work.
         
@@ -90,21 +90,32 @@ def _register_memory_tools(server: FastMCP) -> None:
         
         Args:
             project_name: Name of the project (required) - e.g., "Todo App", "User API", "Dashboard"
+            workspace_path: Absolute path to the project workspace directory (required)
+                           Example: "/home/user/projects/myapp" or "C:\\Users\\name\\projects\\myapp"
             description: Project description (optional but recommended) - What is this project for?
             
         Returns:
             Dictionary with project_id (SAVE THIS - you'll need it for ALL other operations) and success status
             
         Example:
-            >>> result = await create_project("Todo App", "A task management application")
+            >>> result = await create_project("Todo App", "/home/user/projects/todo-app", "A task management application")
             >>> project_id = result["project_id"]  # SAVE THIS ID!
         """
-        return await memory_tools.create_project(project_name, description)
+        return await memory_tools.create_project(project_name, workspace_path, description)
     
     @server.tool()
-    async def get_project_info(project_id: str):
+    async def get_project_info(
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None
+    ):
         """
         Get comprehensive information about a project from CoordMCP memory.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - Before starting work to understand project context and history
@@ -116,25 +127,39 @@ def _register_memory_tools(server: FastMCP) -> None:
         This retrieves: project metadata, tech stack, recent decisions, file dependencies, and change history.
         
         Args:
-            project_id: Project ID from create_project() (required)
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             
         Returns:
             Dictionary with complete project information including decisions, changes, and architecture
+            
+        Examples:
+            # Get by ID
+            await get_project_info(project_id="proj-abc-123")
+            
+            # Get by name
+            await get_project_info(project_name="My App")
+            
+            # Get by workspace path
+            await get_project_info(workspace_path="/home/user/projects/myapp")
         """
-        return await memory_tools.get_project_info(project_id)
+        return await memory_tools.get_project_info(project_id, project_name, workspace_path)
     
     # ==================== Decision Tools ====================
     
     @server.tool()
     async def save_decision(
-        project_id: str,
         title: str,
         description: str,
         rationale: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
         context: str = "",
         impact: str = "",
-        tags: list = [],
-        related_files: list = [],
+        tags: list = None,
+        related_files: list = None,
         author_agent: str = ""
     ):
         """
@@ -160,10 +185,12 @@ def _register_memory_tools(server: FastMCP) -> None:
         - Helps onboard new team members
         
         Args:
-            project_id: Project ID from create_project() (required)
             title: Short, clear decision title - e.g., "Use JWT for Authentication"
             description: Detailed description of what was decided and how it will be implemented
             rationale: WHY this decision was made - the reasoning, trade-offs, alternatives considered
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             context: Background information that led to this decision (optional)
             impact: Expected impact on the project (performance, complexity, maintenance) (optional)
             tags: Categorization tags - e.g., ["architecture", "security", "database"] (optional)
@@ -172,20 +199,53 @@ def _register_memory_tools(server: FastMCP) -> None:
             
         Returns:
             Dictionary with decision_id and success status
+            
+        Examples:
+            # Save by project ID
+            await save_decision(
+                project_id="proj-abc-123",
+                title="Use FastAPI",
+                description="FastAPI chosen for API framework",
+                rationale="Type hints, automatic docs, async support"
+            )
+            
+            # Save by workspace path
+            await save_decision(
+                workspace_path="/home/user/projects/myapp",
+                title="Use PostgreSQL",
+                description="Primary database selection",
+                rationale="ACID compliance, complex queries, JSON support"
+            )
         """
         return await memory_tools.save_decision(
-            project_id, title, description, rationale,
-            context, impact, tags, related_files, author_agent
+            title=title,
+            description=description,
+            rationale=rationale,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            context=context,
+            impact=impact,
+            tags=tags,
+            related_files=related_files,
+            author_agent=author_agent
         )
     
     @server.tool()
     async def get_project_decisions(
-        project_id: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
         status: str = "all",
-        tags: list = []
+        tags: list = None
     ):
         """
         Retrieve all recorded architectural and technical decisions for a project.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - Before making new technical decisions to see what was already decided
@@ -198,25 +258,54 @@ def _register_memory_tools(server: FastMCP) -> None:
         This prevents you from unknowingly contradicting previous architectural choices.
         
         Args:
-            project_id: Project ID from create_project() (required)
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             status: Filter by status - "active" (current), "archived" (old), "superseded" (replaced), or "all" (default)
             tags: Filter by specific tags - e.g., ["database", "security"] (optional)
             
         Returns:
             Dictionary with list of decisions including titles, rationale, and impact
+            
+        Examples:
+            # Get all decisions by project ID
+            await get_project_decisions(project_id="proj-abc-123")
+            
+            # Get only active decisions by workspace path
+            await get_project_decisions(
+                workspace_path="/home/user/projects/myapp",
+                status="active"
+            )
+            
+            # Get database-related decisions by project name
+            await get_project_decisions(
+                project_name="My App",
+                tags=["database"]
+            )
         """
         return await memory_tools.get_project_decisions(
-            project_id, status, tags
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            status=status,
+            tags=tags
         )
     
     @server.tool()
     async def search_decisions(
-        project_id: str,
         query: str,
-        tags: list = []
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
+        tags: list = None
     ):
         """
         Search through recorded decisions by keywords or metadata.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - Looking for decisions about specific topics (e.g., "authentication", "database")
@@ -227,24 +316,46 @@ def _register_memory_tools(server: FastMCP) -> None:
         USEFUL FOR: Quickly finding relevant decisions without reading through all of them.
         
         Args:
-            project_id: Project ID from create_project() (required)
             query: Search keywords - e.g., "authentication", "performance", "database" (required)
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             tags: Optional tags to filter by - e.g., ["security", "architecture"]
             
         Returns:
             Dictionary with matching decisions ranked by relevance
+            
+        Examples:
+            # Search for database-related decisions by project ID
+            await search_decisions(
+                project_id="proj-abc-123",
+                query="PostgreSQL"
+            )
+            
+            # Search by workspace and filter by tags
+            await search_decisions(
+                workspace_path="/home/user/projects/myapp",
+                query="authentication",
+                tags=["security", "backend"]
+            )
         """
         return await memory_tools.search_decisions(
-            project_id, query, tags
+            query=query,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            tags=tags
         )
     
     # ==================== Tech Stack Tools ====================
     
     @server.tool()
     async def update_tech_stack(
-        project_id: str,
         category: str,
         technology: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
         version: str = "",
         rationale: str = "",
         decision_ref: str = ""
@@ -254,6 +365,11 @@ def _register_memory_tools(server: FastMCP) -> None:
         
         MANDATORY: Call this whenever you add or change a major technology in the project.
         This creates a central registry of all technologies used.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - Setting up a new project - record ALL technologies you plan to use
@@ -275,24 +391,62 @@ def _register_memory_tools(server: FastMCP) -> None:
         was based on a documented decision.
         
         Args:
-            project_id: Project ID from create_project() (required)
             category: Technology category (required) - "backend", "frontend", "database", "infrastructure", "testing", "devops"
             technology: Technology name (required) - e.g., "React", "PostgreSQL", "Docker"
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             version: Version string (optional but recommended) - e.g., "18.2.0", "14.5"
             rationale: Brief explanation of why this technology was chosen (optional)
             decision_ref: Decision ID if this choice was documented via save_decision() (optional)
             
         Returns:
             Dictionary with success status
+            
+        Examples:
+            # Update by project ID
+            await update_tech_stack(
+                project_id="proj-abc-123",
+                category="backend",
+                technology="FastAPI",
+                version="0.104.0",
+                rationale="High performance, async support, type hints"
+            )
+            
+            # Update by workspace path
+            await update_tech_stack(
+                workspace_path="/home/user/projects/myapp",
+                category="database",
+                technology="PostgreSQL",
+                version="15",
+                decision_ref="dec-xyz-789"
+            )
         """
         return await memory_tools.update_tech_stack(
-            project_id, category, technology, version, rationale, decision_ref
+            category=category,
+            technology=technology,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            version=version,
+            rationale=rationale,
+            decision_ref=decision_ref
         )
     
     @server.tool()
-    async def get_tech_stack(project_id: str, category: str = ""):
+    async def get_tech_stack(
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
+        category: str = None
+    ):
         """
         Retrieve the complete technology stack for a project.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - At the start of work to understand what technologies are already in use
@@ -304,22 +458,47 @@ def _register_memory_tools(server: FastMCP) -> None:
         RECOMMENDED: Call this early in your workflow to understand the technical landscape.
         
         Args:
-            project_id: Project ID from create_project() (required)
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             category: Filter by specific category (optional) - "backend", "frontend", "database", "infrastructure", etc.
             
         Returns:
             Dictionary with complete tech stack organized by category
+            
+        Examples:
+            # Get full tech stack by project ID
+            await get_tech_stack(project_id="proj-abc-123")
+            
+            # Get only database technologies by workspace
+            await get_tech_stack(
+                workspace_path="/home/user/projects/myapp",
+                category="database"
+            )
+            
+            # Get backend stack by project name
+            await get_tech_stack(
+                project_name="My App",
+                category="backend"
+            )
         """
-        return await memory_tools.get_tech_stack(project_id, category or None)
+        return await memory_tools.get_tech_stack(
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            category=category
+        )
     
     # ==================== Change Log Tools ====================
     
     @server.tool()
     async def log_change(
-        project_id: str,
         file_path: str,
         change_type: str,
         description: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
         agent_id: str = "",
         code_summary: str = "",
         architecture_impact: str = "none",
@@ -330,6 +509,11 @@ def _register_memory_tools(server: FastMCP) -> None:
         
         MANDATORY: Call this AFTER completing any substantial file modification, creation, or deletion.
         This maintains a complete audit trail of all changes made to the project.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE (Always log changes for):
         - Creating new files or components
@@ -356,10 +540,12 @@ def _register_memory_tools(server: FastMCP) -> None:
         - Use code_summary to briefly explain what the code does
         
         Args:
-            project_id: Project ID from create_project() (required)
             file_path: Path of the file that was changed (required) - e.g., "src/auth.py", "components/Button.tsx"
             change_type: Type of change (required) - "create", "modify", "delete", or "refactor"
             description: Clear description of WHAT was changed and WHY (required)
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             agent_id: Your agent_id from register_agent() (optional)
             code_summary: Brief summary of the code/functionality (optional but recommended)
             architecture_impact: Impact on overall architecture - "none", "minor", or "significant" (default: "none")
@@ -367,20 +553,55 @@ def _register_memory_tools(server: FastMCP) -> None:
             
         Returns:
             Dictionary with change_id and success status
+            
+        Examples:
+            # Log a file creation by project ID
+            await log_change(
+                project_id="proj-abc-123",
+                file_path="src/models/user.py",
+                change_type="create",
+                description="Added User model with authentication fields",
+                agent_id="agent-1",
+                architecture_impact="significant"
+            )
+            
+            # Log a modification by workspace path
+            await log_change(
+                workspace_path="/home/user/projects/myapp",
+                file_path="config/database.py",
+                change_type="modify",
+                description="Updated connection pooling settings",
+                architecture_impact="minor"
+            )
         """
         return await memory_tools.log_change(
-            project_id, file_path, change_type, description,
-            agent_id, code_summary, architecture_impact, related_decision
+            file_path=file_path,
+            change_type=change_type,
+            description=description,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            agent_id=agent_id,
+            code_summary=code_summary,
+            architecture_impact=architecture_impact,
+            related_decision=related_decision
         )
     
     @server.tool()
     async def get_recent_changes(
-        project_id: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
         limit: int = 20,
         architecture_impact_filter: str = "all"
     ):
         """
         Retrieve recent changes made to a project for context and continuity.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - At the start of a session to see what was recently worked on
@@ -394,34 +615,64 @@ def _register_memory_tools(server: FastMCP) -> None:
         recent activity and avoid conflicts.
         
         Args:
-            project_id: Project ID from create_project() (required)
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             limit: Maximum number of recent changes to retrieve (default: 20)
             architecture_impact_filter: Filter by impact level (optional) - "all", "none", "minor", or "significant"
             
         Returns:
             Dictionary with chronological list of recent changes
+            
+        Examples:
+            # Get last 20 changes by project ID
+            await get_recent_changes(project_id="proj-abc-123")
+            
+            # Get only significant changes by workspace
+            await get_recent_changes(
+                workspace_path="/home/user/projects/myapp",
+                limit=10,
+                architecture_impact_filter="significant"
+            )
+            
+            # Get recent changes by project name
+            await get_recent_changes(
+                project_name="My App",
+                limit=50
+            )
         """
         return await memory_tools.get_recent_changes(
-            project_id, limit, architecture_impact_filter
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            limit=limit,
+            architecture_impact_filter=architecture_impact_filter
         )
     
     # ==================== File Metadata Tools ====================
     
     @server.tool()
     async def update_file_metadata(
-        project_id: str,
         file_path: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
         file_type: str = "source",
         module: str = "",
         purpose: str = "",
-        dependencies: list = [],
-        dependents: list = [],
+        dependencies: list = None,
+        dependents: list = None,
         lines_of_code: int = 0,
         complexity: str = "low",
         last_modified_by: str = ""
     ):
         """
         Track important file metadata for project understanding and dependency management.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - After creating new files to document their purpose and relationships
@@ -445,8 +696,10 @@ def _register_memory_tools(server: FastMCP) -> None:
         - "high": Complex files, intricate logic, many dependencies, high cognitive load
         
         Args:
-            project_id: Project ID from create_project() (required)
             file_path: Path of the file (required) - e.g., "src/components/Button.tsx"
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             file_type: Type of file - "source", "test", "config", or "doc" (default: "source")
             module: Logical module/component this file belongs to (optional) - e.g., "auth", "ui", "api"
             purpose: Brief description of what this file does (optional)
@@ -458,21 +711,60 @@ def _register_memory_tools(server: FastMCP) -> None:
             
         Returns:
             Dictionary with success status
+            
+        Examples:
+            # Update metadata by project ID
+            await update_file_metadata(
+                project_id="proj-abc-123",
+                file_path="src/models/user.py",
+                file_type="source",
+                module="models",
+                purpose="User model with authentication and validation",
+                dependencies=["src/database.py", "src/utils/crypto.py"],
+                complexity="medium",
+                lines_of_code=150
+            )
+            
+            # Update by workspace path
+            await update_file_metadata(
+                workspace_path="/home/user/projects/myapp",
+                file_path="tests/test_api.py",
+                file_type="test",
+                module="api_tests",
+                purpose="API endpoint tests",
+                dependents=["src/api/routes.py"]
+            )
         """
         return await memory_tools.update_file_metadata(
-            project_id, file_path, file_type, module, purpose,
-            dependencies, dependents, lines_of_code,
-            complexity, last_modified_by
+            file_path=file_path,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            file_type=file_type,
+            module=module,
+            purpose=purpose,
+            dependencies=dependencies,
+            dependents=dependents,
+            lines_of_code=lines_of_code,
+            complexity=complexity,
+            last_modified_by=last_modified_by
         )
     
     @server.tool()
     async def get_file_dependencies(
-        project_id: str,
         file_path: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
         direction: str = "dependencies"
     ):
         """
         Analyze file dependencies to understand the impact of changes.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - Before modifying a file to see what else might break
@@ -491,21 +783,59 @@ def _register_memory_tools(server: FastMCP) -> None:
         - "both": Complete dependency graph in both directions
         
         Args:
-            project_id: Project ID from create_project() (required)
             file_path: Path of the file to analyze (required) - e.g., "src/auth.ts"
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             direction: Direction to analyze - "dependencies", "dependents", or "both" (default: "dependencies")
             
         Returns:
             Dictionary with dependency information and related files
+            
+        Examples:
+            # Get what a file depends on by project ID
+            await get_file_dependencies(
+                project_id="proj-abc-123",
+                file_path="src/models/user.py",
+                direction="dependencies"
+            )
+            
+            # Get what depends on a file by workspace
+            await get_file_dependencies(
+                workspace_path="/home/user/projects/myapp",
+                file_path="src/config.py",
+                direction="dependents"
+            )
+            
+            # Get both directions by project name
+            await get_file_dependencies(
+                project_name="My App",
+                file_path="src/api/routes.py",
+                direction="both"
+            )
         """
         return await memory_tools.get_file_dependencies(
-            project_id, file_path, direction
+            file_path=file_path,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            direction=direction
         )
     
     @server.tool()
-    async def get_module_info(project_id: str, module_name: str):
+    async def get_module_info(
+        module_name: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None
+    ):
         """
         Retrieve comprehensive information about a logical module in the project.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - To understand the structure and purpose of a specific module
@@ -517,13 +847,39 @@ def _register_memory_tools(server: FastMCP) -> None:
         USEFUL FOR: Getting a high-level view of a specific component or subsystem.
         
         Args:
-            project_id: Project ID from create_project() (required)
             module_name: Name of the module (required) - e.g., "auth", "database", "ui"
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             
         Returns:
             Dictionary with module details, files, dependencies, and responsibilities
+            
+        Examples:
+            # Get module info by project ID
+            await get_module_info(
+                project_id="proj-abc-123",
+                module_name="authentication"
+            )
+            
+            # Get module info by workspace path
+            await get_module_info(
+                workspace_path="/home/user/projects/myapp",
+                module_name="database"
+            )
+            
+            # Get module info by project name
+            await get_module_info(
+                project_name="My App",
+                module_name="api"
+            )
         """
-        return await memory_tools.get_module_info(project_id, module_name)
+        return await memory_tools.get_module_info(
+            module_name=module_name,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path
+        )
     
     logger.debug("Memory tools registered")
 
@@ -636,8 +992,10 @@ def _register_context_tools(server: FastMCP) -> None:
     @server.tool()
     async def start_context(
         agent_id: str,
-        project_id: str,
-        objective: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
+        objective: str = "",
         task_description: str = "",
         priority: str = "medium",
         current_file: str = ""
@@ -651,6 +1009,11 @@ def _register_context_tools(server: FastMCP) -> None:
         - File locking coordination
         - Session logging and history
         - Conflict prevention with other agents
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
 
         WHEN TO USE:
         - At the beginning of every coding session or task
@@ -674,7 +1037,9 @@ def _register_context_tools(server: FastMCP) -> None:
 
         Args:
             agent_id: Your agent_id from register_agent() (required)
-            project_id: Project ID from create_project() (required)
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             objective: Clear, concise statement of what you're working on (required) - e.g., "Implement user authentication", "Fix API pagination bug"
             task_description: Detailed description of the work (optional) - Include specific requirements, acceptance criteria
             priority: Priority level - "critical", "high", "medium", or "low" (default: "medium")
@@ -682,10 +1047,26 @@ def _register_context_tools(server: FastMCP) -> None:
 
         Returns:
             Dictionary with context information and session details
+            
+        Examples:
+            # By project ID
+            result = await start_context("agent-123", project_id="proj-456", objective="Fix bug")
+            
+            # By project name
+            result = await start_context("agent-123", project_name="My Project", objective="Fix bug")
+            
+            # By workspace path
+            result = await start_context("agent-123", workspace_path="/path/to/project", objective="Fix bug")
         """
         return await context_tools.start_context(
-            agent_id, project_id, objective, task_description,
-            priority, current_file
+            agent_id=agent_id,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            objective=objective,
+            task_description=task_description,
+            priority=priority,
+            current_file=current_file
         )
     
     @server.tool()
@@ -870,9 +1251,18 @@ def _register_context_tools(server: FastMCP) -> None:
         return await context_tools.unlock_files(agent_id, project_id, files)
     
     @server.tool()
-    async def get_locked_files(project_id: str):
+    async def get_locked_files(
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None
+    ):
         """
         Check which files are currently locked and by whom.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - Before planning your work to see what files are unavailable
@@ -883,12 +1273,28 @@ def _register_context_tools(server: FastMCP) -> None:
         USEFUL FOR: Understanding the current state of file locks and planning your work accordingly.
         
         Args:
-            project_id: Project ID from create_project() (required)
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             
         Returns:
             Dictionary with locked files organized by agent, including lock reasons and expiration times
+            
+        Examples:
+            # By project ID
+            result = await get_locked_files(project_id="proj-456")
+            
+            # By project name
+            result = await get_locked_files(project_name="My Project")
+            
+            # By workspace path
+            result = await get_locked_files(workspace_path="/path/to/project")
         """
-        return await context_tools.get_locked_files(project_id)
+        return await context_tools.get_locked_files(
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path
+        )
     
     # ==================== Session & History Tools ====================
     
@@ -937,9 +1343,18 @@ def _register_context_tools(server: FastMCP) -> None:
         return await context_tools.get_session_log(agent_id, limit)
     
     @server.tool()
-    async def get_agents_in_project(project_id: str):
+    async def get_agents_in_project(
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None
+    ):
         """
         Retrieve all agents currently active in a specific project.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - To check who else is working on this project right now
@@ -950,12 +1365,28 @@ def _register_context_tools(server: FastMCP) -> None:
         USEFUL FOR: Multi-agent coordination and understanding project activity.
         
         Args:
-            project_id: Project ID from create_project() (required)
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             
         Returns:
             Dictionary with list of active agents and their current objectives
+            
+        Examples:
+            # By project ID
+            result = await get_agents_in_project(project_id="proj-456")
+            
+            # By project name
+            result = await get_agents_in_project(project_name="My Project")
+            
+            # By workspace path
+            result = await get_agents_in_project(workspace_path="/path/to/project")
         """
-        return await context_tools.get_agents_in_project(project_id)
+        return await context_tools.get_agents_in_project(
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path
+        )
     
     logger.debug("Context tools registered")
 
@@ -973,9 +1404,18 @@ def _register_architecture_tools(server: FastMCP) -> None:
     logger.debug("Registering architecture tools...")
     
     @server.tool()
-    async def analyze_architecture(project_id: str):
+    async def analyze_architecture(
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None
+    ):
         """
         RECOMMENDED: Analyze and understand the current project architecture.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - At the start of work on an existing project to understand the architecture
@@ -995,23 +1435,46 @@ def _register_architecture_tools(server: FastMCP) -> None:
         the architectural landscape before making changes.
         
         Args:
-            project_id: Project ID from create_project() (required)
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             
         Returns:
             Dictionary with comprehensive architecture analysis and insights
+            
+        Examples:
+            # By project ID
+            result = await analyze_architecture(project_id="proj-456")
+            
+            # By project name
+            result = await analyze_architecture(project_name="My Project")
+            
+            # By workspace path
+            result = await analyze_architecture(workspace_path="/path/to/project")
         """
-        return await architecture_tools.analyze_architecture(project_id)
+        return await architecture_tools.analyze_architecture(
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path
+        )
     
     @server.tool()
     async def get_architecture_recommendation(
-        project_id: str,
         feature_description: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
         context: str = "",
-        constraints: list = [],
+        constraints: list = None,
         implementation_style: str = "modular"
     ):
         """
         RECOMMENDED: Get expert architectural guidance before implementing major features.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - Before implementing significant new features or capabilities
@@ -1042,28 +1505,62 @@ def _register_architecture_tools(server: FastMCP) -> None:
         4. Update architecture tracking with update_architecture()
         
         Args:
-            project_id: Project ID from create_project() (required)
             feature_description: Clear description of what you're building (required) - e.g., "User authentication system with JWT tokens"
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             context: Additional context - requirements, constraints, preferences (optional)
             constraints: List of constraints - e.g., ["must use PostgreSQL", "must be stateless"] (optional)
             implementation_style: Preferred approach - "modular", "monolithic", or "auto" (default: "modular")
             
         Returns:
             Dictionary with detailed architectural recommendations and implementation guidance
+            
+        Examples:
+            # By project ID
+            result = await get_architecture_recommendation(
+                project_id="proj-456",
+                feature_description="Add user authentication"
+            )
+            
+            # By project name
+            result = await get_architecture_recommendation(
+                project_name="My Project",
+                feature_description="Add user authentication"
+            )
+            
+            # By workspace path
+            result = await get_architecture_recommendation(
+                workspace_path="/path/to/project",
+                feature_description="Add user authentication"
+            )
         """
         return await architecture_tools.get_architecture_recommendation(
-            project_id, feature_description, context, constraints, implementation_style
+            feature_description=feature_description,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            context=context,
+            constraints=constraints,
+            implementation_style=implementation_style
         )
     
     @server.tool()
     async def validate_code_structure(
-        project_id: str,
         file_path: str,
         code_structure: dict,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
         strict_mode: bool = False
     ):
         """
         Validate that your code structure follows the project's architectural guidelines.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - Before finalizing a new file or component structure
@@ -1082,16 +1579,45 @@ def _register_architecture_tools(server: FastMCP) -> None:
         - Architectural pattern compliance
         
         Args:
-            project_id: Project ID from create_project() (required)
             file_path: Path where code will be located (required) - e.g., "src/services/auth.ts"
             code_structure: Description of proposed structure (required) - Object with component details
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             strict_mode: Enforce strict validation (optional) - Set to True for critical architectural components
             
         Returns:
             Dictionary with validation results including any violations or suggestions
+            
+        Examples:
+            # By project ID
+            result = await validate_code_structure(
+                project_id="proj-456",
+                file_path="src/main.py",
+                code_structure={...}
+            )
+            
+            # By project name
+            result = await validate_code_structure(
+                project_name="My Project",
+                file_path="src/main.py",
+                code_structure={...}
+            )
+            
+            # By workspace path
+            result = await validate_code_structure(
+                workspace_path="/path/to/project",
+                file_path="src/main.py",
+                code_structure={...}
+            )
         """
         return await architecture_tools.validate_code_structure(
-            project_id, file_path, code_structure, strict_mode
+            file_path=file_path,
+            code_structure=code_structure,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            strict_mode=strict_mode
         )
     
     @server.tool()
@@ -1115,14 +1641,21 @@ def _register_architecture_tools(server: FastMCP) -> None:
     
     @server.tool()
     async def update_architecture(
-        project_id: str,
         recommendation_id: str,
         implementation_summary: str,
-        actual_files_created: list = [],
-        actual_files_modified: list = []
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
+        actual_files_created: list = None,
+        actual_files_modified: list = None
     ):
         """
         Update the project architecture tracking after implementing recommendations.
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
         
         WHEN TO USE:
         - After implementing architectural recommendations from get_architecture_recommendation()
@@ -1143,18 +1676,47 @@ def _register_architecture_tools(server: FastMCP) -> None:
         4. update_architecture() - Update architecture tracking (THIS STEP)
         
         Args:
-            project_id: Project ID from create_project() (required)
             recommendation_id: ID from get_architecture_recommendation() (required)
             implementation_summary: Brief summary of what was implemented (required)
+            project_id: Project ID from create_project() (optional if project_name or workspace_path provided)
+            project_name: Project name to look up (alternative to project_id)
+            workspace_path: Workspace directory path (alternative to project_id)
             actual_files_created: List of new files created (optional) - e.g., ["src/auth.ts", "src/middleware/jwt.ts"]
             actual_files_modified: List of existing files modified (optional) - e.g., ["src/app.ts", "src/routes.ts"]
             
         Returns:
             Dictionary with success status and implementation tracking
+            
+        Examples:
+            # By project ID
+            result = await update_architecture(
+                project_id="proj-456",
+                recommendation_id="rec-789",
+                implementation_summary="Added auth module"
+            )
+            
+            # By project name
+            result = await update_architecture(
+                project_name="My Project",
+                recommendation_id="rec-789",
+                implementation_summary="Added auth module"
+            )
+            
+            # By workspace path
+            result = await update_architecture(
+                workspace_path="/path/to/project",
+                recommendation_id="rec-789",
+                implementation_summary="Added auth module"
+            )
         """
         return await architecture_tools.update_architecture(
-            project_id, recommendation_id, implementation_summary,
-            actual_files_created, actual_files_modified
+            recommendation_id=recommendation_id,
+            implementation_summary=implementation_summary,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            actual_files_created=actual_files_created,
+            actual_files_modified=actual_files_modified
         )
     
     logger.debug("Architecture tools registered")
