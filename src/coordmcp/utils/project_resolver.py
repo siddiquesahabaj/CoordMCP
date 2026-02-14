@@ -27,6 +27,36 @@ def normalize_path(path: str) -> str:
     return os.path.normpath(os.path.abspath(path))
 
 
+def paths_equal(path1: str, path2: str) -> bool:
+    """
+    Compare two paths for equality, handling Windows case-insensitivity.
+    
+    On Windows, drive letters and paths are case-insensitive, so this function
+    normalizes both paths and performs case-insensitive comparison.
+    On Unix-like systems, paths remain case-sensitive.
+    
+    Args:
+        path1: First path to compare
+        path2: Second path to compare
+        
+    Returns:
+        True if paths are equal, False otherwise
+    """
+    if not path1 or not path2:
+        return False
+    
+    # Normalize both paths
+    norm1 = normalize_path(path1)
+    norm2 = normalize_path(path2)
+    
+    # On Windows, compare case-insensitively
+    if os.name == 'nt':  # Windows
+        norm1 = norm1.lower()
+        norm2 = norm2.lower()
+    
+    return norm1 == norm2
+
+
 def validate_workspace_path(path: str) -> Tuple[bool, str]:
     """
     Validate a workspace path for project creation.
@@ -98,7 +128,7 @@ def resolve_project(
         normalized_path = normalize_path(workspace_path)
         all_projects = memory_store.list_projects()
         for proj in all_projects:
-            if proj.workspace_path and normalize_path(proj.workspace_path) == normalized_path:
+            if proj.workspace_path and paths_equal(proj.workspace_path, workspace_path):
                 found_projects.append(("workspace_path", proj))
                 break
     
@@ -169,7 +199,7 @@ def discover_project_by_path(
         
         # Search for project with this path
         for project in all_projects:
-            if project.workspace_path and normalize_path(project.workspace_path) == current_path:
+            if project.workspace_path and paths_equal(project.workspace_path, current_path):
                 if level == 0:
                     return True, project, f"Found exact match: {project.project_name}", 0
                 else:
@@ -207,12 +237,12 @@ def get_projects_by_path(
         
         if recursive:
             # Check if project path starts with base path
-            if normalized_project.startswith(normalized_base + os.sep) or normalized_project == normalized_base:
+            if normalized_project.startswith(normalized_base + os.sep) or paths_equal(normalized_project, base_path):
                 matching_projects.append(project)
         else:
             # Only direct children (same parent directory)
             project_parent = os.path.dirname(normalized_project)
-            if project_parent == normalized_base:
+            if paths_equal(project_parent, base_path):
                 matching_projects.append(project)
     
     # Sort by name
@@ -243,7 +273,7 @@ def is_workspace_path_unique(
         if exclude_project_id and project.project_id == exclude_project_id:
             continue
         
-        if project.workspace_path and normalize_path(project.workspace_path) == normalized_new:
+        if project.workspace_path and paths_equal(project.workspace_path, workspace_path):
             return False
     
     return True
