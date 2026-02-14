@@ -2,10 +2,35 @@
 Data models for the CoordMCP context management system.
 """
 
+import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Literal
 from enum import Enum
 from pydantic import BaseModel, Field, validator
+
+
+def _normalize_file_path(file_path: str) -> str:
+    """
+    Normalize a file path for consistent comparison.
+    
+    On Windows, paths are case-insensitive, so we convert to lowercase
+    to ensure consistent comparisons regardless of how the path is formatted.
+    On Unix-like systems, paths remain case-sensitive.
+    
+    Args:
+        file_path: File path to normalize
+        
+    Returns:
+        Normalized file path
+    """
+    # Normalize path separators and resolve to absolute path
+    normalized = os.path.normpath(os.path.abspath(file_path))
+    
+    # On Windows, convert to lowercase for case-insensitive comparison
+    if os.name == 'nt':
+        normalized = normalized.lower()
+    
+    return normalized
 
 
 class AgentType(str, Enum):
@@ -162,19 +187,22 @@ class AgentContext(BaseModel):
     
     def lock_file(self, lock_info: LockInfo):
         """Add a file lock, replacing any existing lock for this file."""
-        # Remove existing lock for this file if any
-        self.locked_files = [l for l in self.locked_files if l.file_path != lock_info.file_path]
+        # Remove existing lock for this file if any (using normalized comparison)
+        normalized_new = _normalize_file_path(lock_info.file_path)
+        self.locked_files = [l for l in self.locked_files if _normalize_file_path(l.file_path) != normalized_new]
         self.locked_files.append(lock_info)
     
     def unlock_file(self, file_path: str) -> bool:
         """Remove a file lock. Returns True if file was locked."""
         original_count = len(self.locked_files)
-        self.locked_files = [l for l in self.locked_files if l.file_path != file_path]
+        normalized_path = _normalize_file_path(file_path)
+        self.locked_files = [l for l in self.locked_files if _normalize_file_path(l.file_path) != normalized_path]
         return len(self.locked_files) < original_count
     
     def is_file_locked_by_me(self, file_path: str) -> bool:
         """Check if this agent has locked a specific file."""
-        return any(l.file_path == file_path for l in self.locked_files)
+        normalized_path = _normalize_file_path(file_path)
+        return any(_normalize_file_path(l.file_path) == normalized_path for l in self.locked_files)
     
     def get_locked_file_paths(self) -> List[str]:
         """Get list of file paths locked by this agent."""

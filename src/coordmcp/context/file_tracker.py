@@ -2,6 +2,7 @@
 File tracking and locking system for CoordMCP.
 """
 
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from pathlib import Path
@@ -13,6 +14,30 @@ from coordmcp.logger import get_logger
 from coordmcp.errors import FileLockError
 
 logger = get_logger("context.file_tracker")
+
+
+def _normalize_file_path(file_path: str) -> str:
+    """
+    Normalize a file path for consistent storage and lookup.
+    
+    On Windows, paths are case-insensitive, so we convert to lowercase
+    to ensure consistent lookups regardless of how the path is formatted.
+    On Unix-like systems, paths remain case-sensitive.
+    
+    Args:
+        file_path: File path to normalize
+        
+    Returns:
+        Normalized file path
+    """
+    # Normalize path separators and resolve to absolute path
+    normalized = os.path.normpath(os.path.abspath(file_path))
+    
+    # On Windows, convert to lowercase for case-insensitive comparison
+    if os.name == 'nt':
+        normalized = normalized.lower()
+    
+    return normalized
 
 
 class FileTracker:
@@ -110,21 +135,22 @@ class FileTracker:
         # Check for conflicts
         conflicts = []
         for file_path in files:
-            if file_path in locks:
-                existing_lock = locks[file_path]
+            normalized_path = _normalize_file_path(file_path)
+            if normalized_path in locks:
+                existing_lock = locks[normalized_path]
                 if not existing_lock.is_held_by(agent_id):
                     # Check if lock is stale
                     if existing_lock.is_stale(self.config.lock_timeout_hours):
                         logger.warning(
                             f"Removing stale lock on {file_path} by {existing_lock.locked_by}"
                         )
-                        del locks[file_path]
+                        del locks[normalized_path]
                     elif existing_lock.can_acquire(agent_id, priority):
                         # Higher priority can preempt
                         logger.warning(
                             f"Preempting lock on {file_path} by {existing_lock.locked_by} (priority {priority} > {existing_lock.priority})"
                         )
-                        del locks[file_path]
+                        del locks[normalized_path]
                     else:
                         conflicts.append({
                             "file_path": file_path,
@@ -144,15 +170,16 @@ class FileTracker:
         # Create new locks
         locked_files = []
         for file_path in files:
+            normalized_path = _normalize_file_path(file_path)
             lock_info = LockInfo(
-                file_path=file_path,
+                file_path=file_path,  # Store original path for display
                 locked_at=datetime.now(),
                 locked_by=agent_id,
                 reason=reason,
                 expected_unlock_time=expected_unlock_time,
                 priority=priority
             )
-            locks[file_path] = lock_info
+            locks[normalized_path] = lock_info
             locked_files.append(file_path)
         
         # Save locks
@@ -192,11 +219,12 @@ class FileTracker:
         warnings = []
         
         for file_path in files:
-            if file_path not in locks:
+            normalized_path = _normalize_file_path(file_path)
+            if normalized_path not in locks:
                 not_found.append(file_path)
                 continue
             
-            existing_lock = locks[file_path]
+            existing_lock = locks[normalized_path]
             
             # Check if agent owns the lock
             if not existing_lock.is_held_by(agent_id):
@@ -215,7 +243,7 @@ class FileTracker:
                     })
                     continue
             
-            del locks[file_path]
+            del locks[normalized_path]
             unlocked.append(file_path)
         
         # Save updated locks
@@ -245,11 +273,11 @@ class FileTracker:
         
         # Clean up stale locks
         stale_locks = []
-        for file_path, lock_info in list(locks.items()):
+        for normalized_path, lock_info in list(locks.items()):
             if lock_info.is_stale(self.config.lock_timeout_hours):
-                stale_locks.append(file_path)
-                del locks[file_path]
-                logger.info(f"Cleaned up stale lock on {file_path}")
+                stale_locks.append(lock_info.file_path)  # Use original path for display
+                del locks[normalized_path]
+                logger.info(f"Cleaned up stale lock on {lock_info.file_path}")
         
         # Save if we removed any stale locks
         if stale_locks:
@@ -257,13 +285,13 @@ class FileTracker:
         
         # Group by agent
         by_agent: Dict[str, List[Dict]] = {}
-        for file_path, lock_info in locks.items():
+        for normalized_path, lock_info in locks.items():
             agent_id = lock_info.locked_by
             if agent_id not in by_agent:
                 by_agent[agent_id] = []
             
             by_agent[agent_id].append({
-                "file_path": file_path,
+                "file_path": lock_info.file_path,  # Use original path for display
                 "locked_at": lock_info.locked_at.isoformat(),
                 "reason": lock_info.reason,
                 "expected_unlock_time": lock_info.expected_unlock_time.isoformat() if lock_info.expected_unlock_time else None,
@@ -290,15 +318,16 @@ class FileTracker:
         """
         locks = self._load_project_locks(project_id)
         
-        if file_path not in locks:
+        normalized_path = _normalize_file_path(file_path)
+        if normalized_path not in locks:
             return False
         
-        lock_info = locks[file_path]
+        lock_info = locks[normalized_path]
         
         # Check if stale
         if lock_info.is_stale(self.config.lock_timeout_hours):
             # Clean up stale lock
-            del locks[file_path]
+            del locks[normalized_path]
             self._save_project_locks(project_id, locks)
             return False
         
@@ -317,14 +346,15 @@ class FileTracker:
         """
         locks = self._load_project_locks(project_id)
         
-        if file_path not in locks:
+        normalized_path = _normalize_file_path(file_path)
+        if normalized_path not in locks:
             return None
         
-        lock_info = locks[file_path]
+        lock_info = locks[normalized_path]
         
         # Check if stale
         if lock_info.is_stale(self.config.lock_timeout_hours):
-            del locks[file_path]
+            del locks[normalized_path]
             self._save_project_locks(project_id, locks)
             return None
         
@@ -343,10 +373,10 @@ class FileTracker:
         locks = self._load_project_locks(project_id)
         
         stale_locks = []
-        for file_path, lock_info in list(locks.items()):
+        for normalized_path, lock_info in list(locks.items()):
             if lock_info.is_stale(self.config.lock_timeout_hours):
-                stale_locks.append(file_path)
-                del locks[file_path]
+                stale_locks.append(lock_info.file_path)  # Use original path
+                del locks[normalized_path]
         
         if stale_locks:
             self._save_project_locks(project_id, locks)
@@ -375,10 +405,11 @@ class FileTracker:
         """
         locks = self._load_project_locks(project_id)
         
-        if file_path not in locks:
+        normalized_path = _normalize_file_path(file_path)
+        if normalized_path not in locks:
             return False
         
-        lock_info = locks[file_path]
+        lock_info = locks[normalized_path]
         
         try:
             lock_info.extend(new_expected_unlock_time, agent_id)
