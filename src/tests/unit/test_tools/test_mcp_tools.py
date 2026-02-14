@@ -34,10 +34,14 @@ class TestProjectTools:
     """Test project management tools."""
     
     @pytest.mark.asyncio
-    async def test_create_project_success(self):
+    async def test_create_project_success(self, fresh_temp_dir):
         """Test successful project creation."""
+        workspace = fresh_temp_dir / "ecommerce_platform"
+        workspace.mkdir()
+        
         result = await create_project(
             project_name="E-commerce Platform",
+            workspace_path=str(workspace),
             description="A full-stack e-commerce solution"
         )
         
@@ -51,6 +55,7 @@ class TestProjectTools:
         # Empty name should fail validation
         result = await create_project(
             project_name="",  # Invalid - empty
+            workspace_path="/tmp/test",  # Need to provide workspace_path
             description="Description"
         )
         

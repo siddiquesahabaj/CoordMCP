@@ -23,7 +23,7 @@ class TestMultiAgentWorkflow:
     """Test multi-agent coordination workflows."""
     
     @pytest.mark.asyncio
-    async def test_api_design_and_implementation_flow(self):
+    async def test_api_design_and_implementation_flow(self, fresh_temp_dir):
         """
         Test complete API design and implementation workflow:
         1. Architect designs API schema
@@ -32,9 +32,12 @@ class TestMultiAgentWorkflow:
         4. All coordinate without conflicts
         """
         # Create project
+        workspace = fresh_temp_dir / "ecommerce_api"
+        workspace.mkdir()
         project = await create_project(
-            "E-commerce API",
-            "RESTful API for e-commerce platform"
+            project_name="E-commerce API",
+            workspace_path=str(workspace),
+            description="RESTful API for e-commerce platform"
         )
         project_id = project["project_id"]
         
@@ -139,15 +142,18 @@ class TestMultiAgentWorkflow:
     
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="Concurrent test may cause race conditions - run manually if needed")
-    async def test_concurrent_feature_development(self):
+    async def test_concurrent_feature_development(self, fresh_temp_dir):
         """
         Test multiple agents working on different features concurrently.
         Skipped by default as it may cause timing issues.
         """
         # Create project
+        workspace = fresh_temp_dir / "saas_platform"
+        workspace.mkdir()
         project = await create_project(
-            "SaaS Platform",
-            "Multi-tenant SaaS application"
+            project_name="SaaS Platform",
+            workspace_path=str(workspace),
+            description="Multi-tenant SaaS application"
         )
         project_id = project["project_id"]
         
@@ -176,14 +182,17 @@ class TestMultiAgentWorkflow:
         assert agents_result["count"] == 2
     
     @pytest.mark.asyncio
-    async def test_architecture_evolution_tracking(self):
+    async def test_architecture_evolution_tracking(self, fresh_temp_dir):
         """
         Test tracking architecture evolution over time with multiple decisions.
         """
         # Create project
+        workspace = fresh_temp_dir / "microservices_platform"
+        workspace.mkdir()
         project = await create_project(
-            "Microservices Platform",
-            "Event-driven microservices architecture"
+            project_name="Microservices Platform",
+            workspace_path=str(workspace),
+            description="Event-driven microservices architecture"
         )
         project_id = project["project_id"]
         
@@ -263,12 +272,18 @@ class TestConflictResolution:
     
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="Priority preemption not yet implemented - run manually if needed")
-    async def test_priority_based_preemption(self):
+    async def test_priority_based_preemption(self, fresh_temp_dir):
         """
         Test that higher priority agents can preempt lower priority locks.
         Skipped by default as priority preemption is not yet fully implemented.
         """
-        project = await create_project("Priority Test", "Testing priority system")
+        workspace = fresh_temp_dir / "priority_test"
+        workspace.mkdir()
+        project = await create_project(
+            project_name="Priority Test",
+            workspace_path=str(workspace),
+            description="Testing priority system"
+        )
         project_id = project["project_id"]
         
         # Low priority agent
@@ -313,11 +328,17 @@ class TestConflictResolution:
         assert not result["success"]
     
     @pytest.mark.asyncio
-    async def test_stale_lock_cleanup(self):
+    async def test_stale_lock_cleanup(self, fresh_temp_dir):
         """
         Test automatic cleanup of stale locks.
         """
-        project = await create_project("Stale Lock Test", "Testing stale locks")
+        workspace = fresh_temp_dir / "stale_lock_test"
+        workspace.mkdir()
+        project = await create_project(
+            project_name="Stale Lock Test",
+            workspace_path=str(workspace),
+            description="Testing stale locks"
+        )
         project_id = project["project_id"]
         
         agent = await register_agent("Test Agent", "opencode")
@@ -345,13 +366,26 @@ class TestContextSwitchingWorkflow:
     """Test complex context switching scenarios."""
     
     @pytest.mark.asyncio
-    async def test_agent_switching_between_projects(self):
+    async def test_agent_switching_between_projects(self, fresh_temp_dir):
         """
         Test agent working on multiple projects with context switching.
         """
         # Create two projects
-        project_a = await create_project("Project A", "First project")
-        project_b = await create_project("Project B", "Second project")
+        workspace_a = fresh_temp_dir / "project_a"
+        workspace_a.mkdir()
+        project_a = await create_project(
+            project_name="Project A",
+            workspace_path=str(workspace_a),
+            description="First project"
+        )
+        
+        workspace_b = fresh_temp_dir / "project_b"
+        workspace_b.mkdir()
+        project_b = await create_project(
+            project_name="Project B",
+            workspace_path=str(workspace_b),
+            description="Second project"
+        )
         
         agent = await register_agent("Multi-project Agent", "opencode")
         

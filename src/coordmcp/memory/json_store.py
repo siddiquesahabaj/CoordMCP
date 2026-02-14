@@ -194,10 +194,29 @@ class ProjectMemoryStore:
     
     def list_projects(self, include_deleted: bool = False) -> List[ProjectInfo]:
         """List all projects."""
-        # This would need to scan the storage backend for all project keys
-        # Implementation depends on storage backend capabilities
-        # For now, return empty list (to be implemented based on storage)
-        return []
+        projects = []
+        
+        # Scan for project info files in memory directory
+        # Projects are stored at: memory/{project_id}/project_info
+        try:
+            all_keys = self.backend.list_keys("memory")
+            project_keys = [k for k in all_keys if k.endswith("/project_info")]
+            
+            for key in project_keys:
+                data = self.backend.load(key)
+                if data:
+                    try:
+                        project = ProjectInfo.parse_obj(data)
+                        if include_deleted or not project.is_deleted:
+                            projects.append(project)
+                    except Exception:
+                        # Skip invalid project data
+                        continue
+        except Exception:
+            # If storage doesn't support listing, return empty list
+            pass
+        
+        return projects
     
     # ==================== Decision Management ====================
     

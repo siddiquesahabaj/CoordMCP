@@ -23,11 +23,14 @@ def memory_store(storage_backend):
 
 
 @pytest.fixture
-def sample_project_id(memory_store):
+def sample_project_id(memory_store, fresh_temp_dir):
     """Create and return a sample project ID."""
+    workspace = fresh_temp_dir / "performance_test_project"
+    workspace.mkdir()
     return memory_store.create_project(
         project_name="Performance Test Project",
-        description="Test project for performance tests"
+        description="Test project for performance tests",
+        workspace_path=str(workspace)
     )
 
 
