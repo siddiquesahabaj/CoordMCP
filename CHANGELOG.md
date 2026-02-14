@@ -76,7 +76,7 @@ CoordMCP v0.1.0 is the first production-ready release of the Multi-Agent Code Co
 | Metric | Count |
 |--------|-------|
 | **Total Python Files** | 31 |
-| **Total Tools** | 29 |
+| **Total Tools** | 33 |
 | **Total Resources** | 14 |
 | **Total Examples** | 4 |
 | **Test Files** | 8 |

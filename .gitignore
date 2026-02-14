@@ -39,3 +39,4 @@ htmlcov/
 Thumbs.db
 
 cleanup_data.py
+scripts/

@@ -134,7 +134,7 @@ cat opencode.jsonc | python -m json.tool  # Should be valid JSON
 # Look in agent's output/console panel
 
 # 5. Test with a simple tool
-# In agent console, try: await create_project(name="test", description="test")
+# In agent console, try: await coordmcp_create_project(project_name="test", description="test")
 ```
 
 ### "Connection refused" or "Connection error"
@@ -164,7 +164,7 @@ cat opencode.jsonc | python -m json.tool  # Should be valid JSON
 4. Try running a simple test:
    ```python
    # In agent
-   await create_project(project_name="test", description="test")
+   await coordmcp_create_project(project_name="test", description="test")
    ```
 
 ## Data Issues
@@ -247,7 +247,7 @@ python -m coordmcp.main
 **Solution**:
 ```python
 # 1. Check who has it locked
-locked = await get_locked_files(project_id="your-project")
+locked = await coordmcp_get_locked_files(project_id="your-project")
 
 # 2. Contact the other agent to unlock
 # Or wait for lock timeout (default: 24 hours)
@@ -272,7 +272,7 @@ locked = await get_locked_files(project_id="your-project")
 **Solution**:
 ```python
 # 1. Unlock files you're done with
-await unlock_files(
+await coordmcp_unlock_files(
     agent_id="your-agent-id",
     project_id="your-project",
     files=["src/file1.py", "src/file2.py"]
@@ -297,7 +297,7 @@ registry = await storage.read("global/project_registry.json")
 print(registry["projects"].keys())
 
 # 2. Create project if needed
-result = await create_project(
+result = await coordmcp_create_project(
     project_name="My Project",
     description="Description"
 )
@@ -311,7 +311,7 @@ project_id = result["project_id"]
 **Solution**:
 ```python
 # Register yourself first
-result = await register_agent(
+result = await coordmcp_register_agent(
     agent_name="MyAgent",
     agent_type="opencode",
     capabilities=["python"]
@@ -334,10 +334,10 @@ agent_id = result["agent_id"]
 Example:
 ```python
 # ❌ Missing required parameter
-await save_decision(project_id="...")  # Missing title
+await coordmcp_save_decision(project_id="...")  # Missing title
 
 # ✅ All required parameters
-await save_decision(
+await coordmcp_save_decision(
     project_id="...",
     title="Use FastAPI",  # Required!
     description="...",

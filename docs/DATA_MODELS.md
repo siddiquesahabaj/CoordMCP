@@ -44,6 +44,7 @@ Stores basic project metadata.
   "project_id": "string (UUID)",
   "project_name": "string (required)",
   "description": "string (optional)",
+  "workspace_path": "string (required - absolute path)",
   "created_at": "string (ISO 8601 datetime)",
   "last_updated": "string (ISO 8601 datetime)",
   "version": "string (default: 1.0.0)"
@@ -56,11 +57,17 @@ Stores basic project metadata.
   "project_id": "550e8400-e29b-41d4-a716-446655440000",
   "project_name": "E-Commerce Platform",
   "description": "Modern e-commerce solution with microservices",
+  "workspace_path": "/home/user/projects/ecommerce",
   "created_at": "2026-02-10T10:30:00",
   "last_updated": "2026-02-10T15:45:00",
   "version": "1.0.0"
 }
 ```
+
+**Notes:**
+- `workspace_path` must be an absolute path (not relative)
+- This links the project to a specific directory for discovery
+- Used by `discover_project()` tool to find projects
 
 ---
 

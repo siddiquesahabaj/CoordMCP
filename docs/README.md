@@ -18,7 +18,7 @@ Learn how to use CoordMCP effectively.
 
 | Document | Description |
 |----------|-------------|
-| **[API Reference](API_REFERENCE.md)** | Complete reference for all 29 tools and 13 resources |
+| **[API Reference](API_REFERENCE.md)** | Complete reference for all 33 tools and 14+ resources |
 | **[Data Models](DATA_MODELS.md)** | Understanding data structures and storage |
 | **[Troubleshooting](TROUBLESHOOTING.md)** | Common issues and solutions |
 | **[Extending](EXTENDING.md)** | How to extend CoordMCP with custom tools |
@@ -48,10 +48,7 @@ For developers contributing to or extending CoordMCP.
 
 | Document | Description |
 |----------|-------------|
-| **[Architecture](DEVELOPMENT/ARCHITECTURE.md)** | System design, patterns, and ADRs |
-| **[Implementation Guide](DEVELOPMENT/IMPLEMENTATION_GUIDE.md)** | Detailed implementation specifications |
-| **[Code Examples](DEVELOPMENT/CODE_EXAMPLES.md)** | Common patterns and templates |
-| **[Testing](DEVELOPMENT/TESTING.md)** | Testing strategy and guidelines |
+| **[Developer Guide](DEVELOPMENT.md)** | Complete developer guide including architecture, data models, tools, resources, and contribution guidelines |
 
 ### 📋 Project Information
 
@@ -71,8 +68,8 @@ Learn the API | [API Reference](API_REFERENCE.md)
 Understand the data | [Data Models](DATA_MODELS.md)
 Fix a problem | [Troubleshooting](TROUBLESHOOTING.md)
 Add custom functionality | [Extending](EXTENDING.md)
-Understand the architecture | [Architecture](DEVELOPMENT/ARCHITECTURE.md)
-Contribute code | [Contributing](../CONTRIBUTING.md)
+Understand the architecture | [Developer Guide](DEVELOPMENT.md)
+Contribute code | [Contributing](../CONTRIBUTING.md) → [Developer Guide](DEVELOPMENT.md)
 
 ### By Role
 
@@ -81,16 +78,17 @@ Contribute code | [Contributing](../CONTRIBUTING.md)
 New user | [Getting Started](GETTING_STARTED.md)
 Developer using CoordMCP | [API Reference](API_REFERENCE.md)
 Agent configuration | [Integrations](#-agent-integrations)
-Contributor | [Contributing](../CONTRIBUTING.md) → [Architecture](DEVELOPMENT/ARCHITECTURE.md)
-System architect | [Architecture](DEVELOPMENT/ARCHITECTURE.md) → [Data Models](DATA_MODELS.md)
+Contributor | [Contributing](../CONTRIBUTING.md) → [Developer Guide](DEVELOPMENT.md)
+System architect | [Developer Guide](DEVELOPMENT.md) → [Data Models](DATA_MODELS.md)
 
 ## 📊 Documentation Stats
 
-- **29 Tools** documented
-- **14 Resources** documented
+- **33 Tools** documented (4 discovery, 11 memory, 13 context, 5 architecture)
+- **14+ Resources** documented
 - **9 Design Patterns** catalogued
 - **4 Integration Guides** available
 - **4 Example Walkthroughs** with code
+- **Flexible Project Lookup** by ID, name, or workspace path
 
 ## 🔍 Search Tips
 
@@ -98,6 +96,7 @@ System architect | [Architecture](DEVELOPMENT/ARCHITECTURE.md) → [Data Models]
 - Check **Troubleshooting** for error messages
 - Browse **Examples** for usage patterns
 - Review **Data Models** for understanding storage
+- Read **Developer Guide** for architecture and extending
 
 ## 💡 Getting Help
 
@@ -111,13 +110,26 @@ Don't want to read? Try these quick commands in your agent:
 
 ```python
 # Create a project
-await create_project(project_name="My Project", description="My first project")
+await coordmcp_create_project(
+    project_name="My Project",
+    workspace_path=os.getcwd(),
+    description="My first project"
+)
 
 # Register yourself
-await register_agent(agent_name="MyAgent", agent_type="opencode", capabilities=["python"])
+await coordmcp_register_agent(
+    agent_name="MyAgent",
+    agent_type="opencode",
+    capabilities=["python"]
+)
 
 # Save a decision
-await save_decision(project_id="proj-xxx", title="Use FastAPI", description="Async framework", rationale="Performance")
+await coordmcp_save_decision(
+    project_id="proj-xxx",
+    title="Use FastAPI",
+    description="Async framework",
+    rationale="Performance"
+)
 ```
 
 ---
