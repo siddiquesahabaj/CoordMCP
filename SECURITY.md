@@ -2,119 +2,275 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
-| < 0.1.0 | :x:                |
+We actively support and provide security updates for the following versions:
+
+| Version | Supported | Status |
+| ------- | --------- | ------ |
+| 0.1.x   | ✅ Yes | Current stable release |
+| < 0.1.0 | ❌ No | Development/beta versions |
+
+Security updates will be released for supported versions as patch releases (e.g., 0.1.1, 0.1.2).
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a security vulnerability within CoordMCP, please follow these steps:
+We take security vulnerabilities seriously. If you discover a security issue in CoordMCP, please follow responsible disclosure practices.
 
-### 1. Do Not Open a Public Issue
+### Responsible Disclosure Process
 
-Please **DO NOT** create a public GitHub issue for security vulnerabilities. This could expose the vulnerability to malicious actors before a fix is available.
+#### 1. Do Not Open a Public Issue
 
-### 2. Report Privately
+**Please DO NOT** create a public GitHub issue for security vulnerabilities. Public disclosure could expose the vulnerability to malicious actors before a fix is available.
 
-Send an email to **security@coordmcp.dev** with:
+#### 2. Report Privately
 
-- **Subject**: `[SECURITY] Brief description of the issue`
-- **Description**: Detailed explanation of the vulnerability
-- **Steps to reproduce**: Clear instructions to demonstrate the issue
-- **Impact**: What could happen if exploited
-- **Suggested fix**: If you have ideas for fixing it (optional)
-- **Your contact**: How to reach you for follow-up
+Send an email to **security@coordmcp.dev** with the following information:
 
-### 3. Response Timeline
+**Subject Line:**
+```
+[SECURITY] Brief description of the vulnerability
+```
 
-We will respond to security reports within:
+**Email Body:**
+```
+Vulnerability Summary:
+[One-line summary of the issue]
 
-- **24 hours**: Acknowledgment of receipt
-- **72 hours**: Initial assessment and next steps
-- **7 days**: Progress update or fix timeline
-- **30 days**: Target for fix release (critical vulnerabilities)
+Description:
+[Detailed explanation of the vulnerability]
 
-### 4. After Fix
+Steps to Reproduce:
+1. Step one
+2. Step two
+3. Step three
+
+Impact:
+[What could happen if this is exploited]
+
+Suggested Fix:
+[Your ideas for fixing it, if any - optional]
+
+Your Contact Information:
+[How to reach you for follow-up questions]
+```
+
+#### 3. Response Timeline
+
+We commit to the following response times:
+
+| Timeframe | Action |
+|-----------|--------|
+| **24 hours** | Acknowledgment of receipt |
+| **72 hours** | Initial assessment and next steps |
+| **7 days** | Progress update or fix timeline |
+| **30 days** | Target for fix release (critical vulnerabilities) |
+
+#### 4. After Fix
 
 Once the vulnerability is fixed:
 
-- You will be credited in the security advisory (unless you prefer anonymity)
-- We will publish a security advisory on GitHub
-- The fix will be included in the next release
+1. You will be credited in the security advisory (unless you prefer anonymity)
+2. We will publish a security advisory on GitHub Security tab
+3. The fix will be included in the next release
+4. We will notify you before public disclosure
 
 ## Security Measures
 
 ### Current Protections
 
-CoordMCP implements several security measures:
+CoordMCP implements multiple layers of security:
 
 #### Input Validation
-- All tool inputs are validated using custom decorators
-- UUID format validation for IDs
-- Path traversal prevention in file operations
-- Length limits on string inputs
-- Enum validation for constrained values
+
+- **UUID format validation** - All IDs are validated as proper UUIDs
+- **Path traversal prevention** - File operations sanitize paths
+- **Length limits** - String inputs have maximum length constraints
+- **Enum validation** - Constrained values are validated against allowed options
+- **Type checking** - Pydantic models enforce type safety
+
+```python
+# Example: Path traversal prevention
+def validate_workspace_path(path: str) -> Tuple[bool, str]:
+    """Validate workspace path doesn't allow traversal."""
+    normalized = os.path.normpath(path)
+    if ".." in normalized or not os.path.isabs(normalized):
+        return False, "Path must be absolute and not contain traversal"
+    return True, ""
+```
 
 #### File System Security
-- Atomic file writes prevent corruption
-- Path sanitization prevents directory traversal
-- File locking prevents concurrent modification conflicts
-- Restricted write locations (data directory only)
+
+- **Atomic file writes** - Prevents corruption during concurrent writes
+- **Path sanitization** - All file paths are normalized and validated
+- **File locking** - Prevents concurrent modification conflicts
+- **Restricted write locations** - Only writes to configured data directory
+- **Permission checks** - Respects OS file permissions
 
 #### Data Protection
-- JSON storage with schema validation
-- Data integrity checks on read/write
-- No sensitive data in logs (by default)
-- Configurable log levels
 
-### Best Practices
+- **JSON storage with validation** - All data is validated against schemas
+- **Data integrity checks** - Checksums verify data hasn't been corrupted
+- **No sensitive data in logs** - Personal/sensitive data is excluded from logs
+- **Configurable log levels** - Adjust logging verbosity as needed
+
+### Best Practices for Users
 
 When using CoordMCP:
 
-1. **Keep software updated** - Always use the latest version
-2. **Secure data directory** - Restrict access to `~/.coordmcp/data/`
-3. **Review permissions** - Ensure proper file permissions on data files
-4. **Monitor logs** - Regularly check for unusual activity
-5. **Use environment variables** - Don't hardcode sensitive configuration
-6. **Validate inputs** - Even with validation decorators, be cautious with user input
+1. **Keep software updated**
+   ```bash
+   pip install --upgrade coordmcp
+   ```
+
+2. **Secure data directory**
+   ```bash
+   # Set restrictive permissions
+   chmod 700 ~/.coordmcp/data/
+   
+   # On Windows, restrict folder permissions through Properties > Security
+   ```
+
+3. **Use environment variables** for configuration
+   ```bash
+   # Good
+   export COORDMCP_DATA_DIR=/secure/path
+   
+   # Avoid hardcoding in scripts
+   ```
+
+4. **Review permissions** on data files regularly
+
+5. **Monitor logs** for unusual activity
+   ```bash
+   tail -f ~/.coordmcp/logs/coordmcp.log
+   ```
 
 ## Security Considerations
 
 ### Data Storage
 
-- CoordMCP stores data in JSON files on the local filesystem
-- No encryption at rest by default (rely on OS-level security)
-- Backup your data directory regularly
-- Use strong OS-level permissions
+**Important Notes:**
+
+- CoordMCP stores data in **JSON files on the local filesystem**
+- **No encryption at rest by default** - relies on OS-level security
+- Store data on encrypted volumes for additional security
+- Regular backups recommended
+
+**Securing Your Data:**
+
+```bash
+# Set secure permissions
+chmod 700 ~/.coordmcp/
+chmod 600 ~/.coordmcp/data/*.json
+
+# On macOS/Linux with FileVault or LUKS encryption
+# Data will be encrypted at the volume level
+
+# For additional security, store on encrypted volume
+export COORDMCP_DATA_DIR=/Volumes/EncryptedDrive/coordmcp-data
+```
 
 ### Network Security
 
-- CoordMCP uses stdio transport (no network ports)
-- Communication is between local processes only
-- No external network connections
+- **No network ports opened** - CoordMCP uses stdio transport only
+- **Local process communication** - All communication is between local processes
+- **No external network connections** - Does not connect to external servers
+
+**Transport Methods:**
+
+| Transport | Network | Use Case |
+|-----------|---------|----------|
+| stdio (default) | No | Local agents |
+| HTTP/SSE | Optional | Remote agents (not implemented) |
 
 ### Agent Permissions
 
-- Agents using CoordMCP have access to all tools
-- Implement agent-level permissions in your agent configuration
-- Review tool usage in logs regularly
+**Current Limitations:**
+
+- Agents have **access to all tools** by default
+- **No role-based access control** implemented
+- All agents in a project can see each other's activity
+
+**Mitigation Strategies:**
+
+1. **Use project isolation**
+   ```python
+   # Create separate projects for sensitive work
+   await create_project(
+       project_name="sensitive-api",
+       workspace_path="/secure/path"
+   )
+   ```
+
+2. **Monitor agent activity**
+   ```python
+   # Regularly check active agents
+   agents = await get_active_agents(project_id)
+   ```
+
+3. **Review tool usage** in logs
 
 ## Known Limitations
 
-1. **No authentication** - CoordMCP assumes trusted local environment
-2. **No encryption** - Data is stored as plain JSON
-3. **Single user** - Not designed for multi-user environments without additional controls
+We believe in transparency. Here are known security limitations:
 
-## Reporting Non-Security Bugs
+1. **No Authentication**
+   - CoordMCP assumes a trusted local environment
+   - Anyone with access to the data directory can read all project data
+   - **Mitigation:** Use OS-level permissions and encryption
 
-For regular bugs (not security vulnerabilities), please use [GitHub Issues](https://github.com/yourusername/coordmcp/issues).
+2. **No Encryption at Rest**
+   - Data stored as plain JSON
+   - **Mitigation:** Use encrypted volumes (FileVault, BitLocker, LUKS)
+
+3. **Single User Design**
+   - Not designed for multi-user environments
+   - All agents share the same data access level
+   - **Mitigation:** Run separate CoordMCP instances per user
+
+4. **No Audit Trail for Data Access**
+   - Logs track tool usage but not data reads
+   - **Mitigation:** Monitor file system access logs
+
+5. **Memory-Based Session State**
+   - Some state held in memory (file locks, contexts)
+   - Server restart clears volatile state
+   - **Mitigation:** Persistent data remains in JSON files
+
+## Security Checklist
+
+Before deploying CoordMCP:
+
+- [ ] Data directory has restrictive permissions (700)
+- [ ] Running on encrypted volume (recommended)
+- [ ] Regular backups configured
+- [ ] Log monitoring enabled
+- [ ] Environment variables used for sensitive config
+- [ ] Latest version installed
+- [ ] Only trusted agents have access
+- [ ] Project data reviewed for sensitive information
+
+## Reporting Non-Security Issues
+
+For regular bugs (not security vulnerabilities), please use:
+
+- [GitHub Issues](https://github.com/yourusername/coordmcp/issues)
+- Email: support@coordmcp.dev
 
 ## Contact
 
-- **Security Team**: security@coordmcp.dev
-- **General Support**: support@coordmcp.dev
-- **Discord**: [Join our community](https://discord.gg/coordmcp)
+| Type | Contact |
+|------|---------|
+| **Security Team** | security@coordmcp.dev |
+| **General Support** | support@coordmcp.dev |
+| **Discord** | [Join our community](https://discord.gg/coordmcp) |
+
+## Security Updates
+
+Subscribe to security announcements:
+
+- Watch the repository on GitHub
+- Join our Discord #security channel
+- Follow @coordmcp on Twitter
 
 ---
 

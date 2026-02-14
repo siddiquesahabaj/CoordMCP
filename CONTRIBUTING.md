@@ -1,47 +1,57 @@
 # Contributing to CoordMCP
 
-Thank you for your interest in contributing to CoordMCP! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to CoordMCP! This document provides comprehensive guidelines for contributing to the project.
 
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
-- [Development Setup](#development-setup)
+- [Development Environment](#development-environment)
+- [Project Structure](#project-structure)
 - [Code Style](#code-style)
 - [Testing](#testing)
-- [Submitting Changes](#submitting-changes)
-- [Project Structure](#project-structure)
-- [Architecture Guidelines](#architecture-guidelines)
+- [Making Changes](#making-changes)
+- [Submitting Contributions](#submitting-contributions)
+- [Release Process](#release-process)
 
 ## Code of Conduct
 
-This project and everyone participating in it is governed by our Code of Conduct. By participating, you are expected to uphold this code:
+This project adheres to a Code of Conduct. By participating, you are expected to uphold these standards:
 
-- Be respectful and inclusive
-- Welcome newcomers and help them learn
-- Focus on constructive feedback
-- Respect different viewpoints and experiences
+- **Be respectful** - Treat everyone with respect and consideration
+- **Be inclusive** - Welcome newcomers and help them learn
+- **Be constructive** - Provide helpful feedback and criticism
+- **Be patient** - Remember that people have varying levels of experience
+- **Be collaborative** - Work together to build something great
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- Git
-- pip
+Before you begin, ensure you have:
+
+- Python 3.10 or higher
+- Git (for version control)
+- pip (Python package manager)
+- A GitHub account
 
 ### Fork and Clone
 
-```bash
-# Fork the repository on GitHub, then clone your fork
-git clone https://github.com/YOUR_USERNAME/coordmcp.git
-cd coordmcp
+1. **Fork the repository** on GitHub
+2. **Clone your fork** locally:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/coordmcp.git
+   cd coordmcp
+   ```
+3. **Add upstream remote**:
+   ```bash
+   git remote add upstream https://github.com/original/coordmcp.git
+   git fetch upstream
+   ```
 
-# Add upstream remote
-git remote add upstream https://github.com/original/coordmcp.git
-```
+## Development Environment
 
-## Development Setup
+### Option 1: Using Virtual Environment (Recommended)
 
 ```bash
 # Create virtual environment
@@ -53,64 +63,157 @@ venv\Scripts\activate
 # macOS/Linux:
 source venv/bin/activate
 
-# Install in development mode with all dependencies
+# Install in development mode
 pip install -e ".[dev]"
 
 # Verify installation
-python -m coordmcp.main --version
+python -m coordmcp --version
+```
+
+### Option 2: Using Conda
+
+```bash
+# Create conda environment
+conda create -n coordmcp python=3.11
+conda activate coordmcp
+
+# Install in development mode
+pip install -e ".[dev]"
+
+# Verify
+python -m coordmcp --version
+```
+
+## Project Structure
+
+```
+coordmcp/
+├── src/coordmcp/              # Main source code
+│   ├── core/                  # Server initialization, tool/resource registration
+│   │   ├── server.py          # FastMCP server setup
+│   │   ├── tool_manager.py    # Tool registration
+│   │   └── resource_manager.py # Resource registration
+│   ├── memory/                # Long-term memory system
+│   │   ├── json_store.py      # Project memory storage
+│   │   └── models.py          # Data models (Decision, TechStackEntry, etc.)
+│   ├── context/               # Agent context and file locking
+│   │   ├── manager.py         # Context management
+│   │   ├── file_tracker.py    # File locking system
+│   │   └── state.py           # State models
+│   ├── architecture/          # Architecture tools
+│   │   ├── analyzer.py        # Code structure analysis
+│   │   ├── patterns.py        # Design pattern library
+│   │   └── recommender.py     # Architecture recommendations
+│   ├── tools/                 # MCP tool implementations
+│   │   ├── memory_tools.py    # Project, decision, tech stack tools
+│   │   ├── context_tools.py   # Agent, context, file locking tools
+│   │   ├── discovery_tools.py # Project/agent discovery
+│   │   └── architecture_tools.py # Architecture analysis tools
+│   ├── resources/             # MCP resource implementations
+│   ├── storage/               # Storage backends
+│   │   └── json_adapter.py    # JSON file storage
+│   ├── utils/                 # Utility functions
+│   │   ├── validation.py      # Input validation
+│   │   └── project_resolver.py # Project lookup utilities
+│   └── __init__.py            # Package initialization
+├── src/tests/                 # Test suite
+│   ├── unit/                  # Unit tests
+│   ├── integration/           # Integration tests
+│   └── e2e/                   # End-to-end tests
+├── docs/                      # Documentation
+├── pyproject.toml             # Project configuration
+└── README.md                  # Main documentation
 ```
 
 ## Code Style
 
-We follow PEP 8 with some project-specific conventions:
+We follow PEP 8 with project-specific conventions:
 
-### Python Style
+### Python Style Guide
 
 ```python
-# Use type hints
-def create_project(project_name: str, description: str = "") -> dict:
+# 1. Use type hints for all function parameters and return values
+async def create_project(
+    project_name: str,
+    workspace_path: str,
+    description: str = ""
+) -> Dict[str, Any]:
     """Create a new project.
     
     Args:
         project_name: Name of the project (required)
+        workspace_path: Absolute path to project directory (required)
         description: Optional project description
         
     Returns:
         Dictionary with project_id and status
         
     Example:
-        >>> result = await create_project("My Project", "Description")
+        >>> result = await create_project("My App", "/path/to/app")
         >>> print(result["project_id"])
     """
     pass
 
-# Maximum line length: 100 characters
-# Use black for formatting
-black src/coordmcp/
+# 2. Maximum line length: 100 characters
+# 3. Use double quotes for strings
+# 4. Use trailing commas in multi-line structures
 
-# Import order: stdlib, third-party, local
+# 5. Import order: stdlib, third-party, local
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from coordmcp.config import Config
+from coordmcp.memory.models import ProjectInfo
 ```
 
-### Documentation
+### Docstring Standards
 
-- All public functions must have docstrings
-- Use Google-style docstrings
-- Include examples in docstrings for complex functions
-- Keep README.md updated with new features
+Use Google-style docstrings with examples:
+
+```python
+async def register_agent(
+    agent_name: str,
+    agent_type: str,
+    capabilities: List[str] = []
+) -> Dict[str, Any]:
+    """Register a new agent in the global registry.
+    
+    This function creates or reconnects to an existing agent based on name.
+    Agents with the same name will reconnect to their existing identity.
+    
+    Args:
+        agent_name: Name of the agent (e.g., "OpenCode", "Cursor")
+        agent_type: Type of agent - "opencode", "cursor", "claude_code", or "custom"
+        capabilities: List of agent capabilities (e.g., ["python", "react"])
+        
+    Returns:
+        Dictionary with:
+        - success: Boolean indicating success
+        - agent_id: Unique agent identifier
+        - message: Status message
+        
+    Raises:
+        ValidationError: If agent_type is invalid
+        
+    Example:
+        >>> result = await register_agent("MyAgent", "opencode", ["python"])
+        >>> if result["success"]:
+        ...     print(f"Agent ID: {result['agent_id']}")
+    """
+```
 
 ### Naming Conventions
 
-- **Files**: `snake_case.py`
-- **Classes**: `PascalCase`
-- **Functions/Variables**: `snake_case`
-- **Constants**: `UPPER_SNAKE_CASE`
-- **Private**: `_leading_underscore`
+| Type | Convention | Example |
+|------|-----------|---------|
+| Files | snake_case | `memory_tools.py` |
+| Classes | PascalCase | `ProjectInfo` |
+| Functions | snake_case | `create_project` |
+| Variables | snake_case | `project_id` |
+| Constants | UPPER_SNAKE_CASE | `SCHEMA_VERSION` |
+| Private | _leading_underscore | `_internal_function` |
 
 ## Testing
 
@@ -120,15 +223,19 @@ from coordmcp.config import Config
 # Run all tests
 python -m pytest src/tests/ -v
 
+# Run with coverage
+python -m pytest --cov=coordmcp src/tests/ -v
+
 # Run specific test category
 python -m pytest src/tests/unit/ -v
 python -m pytest src/tests/integration/ -v
-
-# Run with coverage
-python -m pytest --cov=coordmcp src/tests/
+python -m pytest src/tests/e2e/ -v
 
 # Run specific test file
 python -m pytest src/tests/unit/test_memory/test_json_store.py -v
+
+# Run specific test
+python -m pytest src/tests/unit/test_memory/test_json_store.py::TestProjectCreation -v
 ```
 
 ### Writing Tests
@@ -157,25 +264,53 @@ class TestJSONStorageBackend:
         """Test reading non-existent file returns None."""
         result = storage.read("nonexistent.json")
         assert result is None
+    
+    def test_atomic_write(self, storage):
+        """Test atomic write prevents corruption."""
+        data = {"important": "data"}
+        storage.write("important.json", data)
+        # Verify file exists and is valid JSON
+        result = storage.read("important.json")
+        assert result == data
 ```
 
 ### Test Categories
 
-- **Unit Tests**: Test individual functions/classes in isolation
-- **Integration Tests**: Test component interactions
-- **E2E Tests**: Test complete workflows
+- **Unit Tests** (`src/tests/unit/`): Test individual functions/classes
+- **Integration Tests** (`src/tests/integration/`): Test component interactions
+- **E2E Tests** (`src/tests/e2e/`): Test complete workflows
 
-## Submitting Changes
+### Test Markers
+
+```python
+@pytest.mark.unit
+@pytest.mark.memory
+class TestProjectCreation:
+    """Test project creation."""
+    
+    @pytest.mark.asyncio
+    async def test_create_project(self):
+        """Test creating a project."""
+        pass
+```
+
+## Making Changes
 
 ### Branch Naming
 
 ```
-feature/description    # New features
-bugfix/description     # Bug fixes
-docs/description       # Documentation updates
-refactor/description   # Code refactoring
-test/description       # Test additions/improvements
+feature/description          # New features
+bugfix/description           # Bug fixes
+docs/description             # Documentation updates
+refactor/description         # Code refactoring
+test/description             # Test additions
+chore/description            # Maintenance tasks
 ```
+
+Examples:
+- `feature/add-discovery-tools`
+- `bugfix/fix-workspace-path-validation`
+- `docs/update-readme-installation`
 
 ### Commit Messages
 
@@ -189,146 +324,87 @@ body (optional)
 footer (optional)
 ```
 
-Types:
-- **feat**: New feature
-- **fix**: Bug fix
-- **docs**: Documentation changes
-- **style**: Code style (formatting, missing semi colons, etc)
-- **refactor**: Code refactoring
-- **test**: Adding or updating tests
-- **chore**: Build process or auxiliary tool changes
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style (formatting, no logic changes)
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Build process or auxiliary tool changes
 
-Examples:
+**Examples:**
 ```
-feat(memory): add search functionality to decisions
+feat(tools): add discover_project tool for workspace-based lookup
 
-Implement full-text search for architectural decisions
-with support for filtering by date, author, and tags.
+Implement project discovery by directory path with parent
+directory search support. This enables agents to automatically
+find projects when working in a directory.
 
-fix(context): resolve race condition in file locking
+fix(memory): resolve workspace_path validation error
 
-Prevent multiple agents from simultaneously locking
-the same file by adding atomic check-and-set operation.
+Fix issue where relative paths were accepted when absolute
+paths are required. Now properly validates path format.
 
-docs(api): update tool descriptions in API_REFERENCE
+docs(readme): update installation instructions for pip
 
-Add missing parameter descriptions and examples for
-context management tools.
+Add clear pip installation instructions and troubleshoot
+guide for common installation issues.
 ```
-
-### Pull Request Process
-
-1. **Create a branch** from `main`
-   ```bash
-   git checkout -b feature/my-feature
-   ```
-
-2. **Make your changes** with clear, focused commits
-
-3. **Test your changes**
-   ```bash
-   python -m pytest src/tests/ -v
-   ```
-
-4. **Update documentation** if needed
-
-5. **Push your branch**
-   ```bash
-   git push origin feature/my-feature
-   ```
-
-6. **Create Pull Request** on GitHub
-   - Fill out the PR template
-   - Link related issues
-   - Request review from maintainers
-
-### PR Checklist
-
-- [ ] Code follows style guidelines
-- [ ] Tests pass locally
-- [ ] New tests added for new features
-- [ ] Documentation updated
-- [ ] CHANGELOG.md updated
-- [ ] No breaking changes (or documented)
-- [ ] Commit messages are clear
-
-## Project Structure
-
-```
-coordmcp/
-├── src/coordmcp/              # Main source code
-│   ├── core/                  # Server and tool management
-│   ├── memory/                # Long-term memory system
-│   ├── context/               # Context and file locking
-│   ├── architecture/          # Architecture tools
-│   ├── tools/                 # MCP tool implementations
-│   ├── resources/             # MCP resource implementations
-│   ├── storage/               # Storage backends
-│   ├── errors/                # Exception classes
-│   └── utils/                 # Utility functions
-├── src/tests/                 # Test suite
-│   ├── unit/                  # Unit tests
-│   ├── integration/           # Integration tests
-│   └── e2e/                   # End-to-end tests
-├── docs/                      # Documentation
-│   ├── INTEGRATIONS/          # Agent integration guides
-│   ├── DEVELOPMENT/           # Developer documentation
-│   └── examples/              # Example walkthroughs
-└── examples/                  # Runnable example scripts
-```
-
-## Architecture Guidelines
 
 ### Adding New Tools
 
-1. Create tool function in appropriate `tools/` file
-2. Add comprehensive docstring with examples
-3. Register in `tool_manager.py`
-4. Add unit tests
-5. Update API_REFERENCE.md
+1. **Create tool function** in appropriate file:
+   ```python
+   # src/coordmcp/tools/memory_tools.py
+   
+   async def my_new_tool(
+       project_id: Optional[str] = None,
+       project_name: Optional[str] = None,
+       workspace_path: Optional[str] = None,
+       **kwargs
+   ) -> Dict[str, Any]:
+       """Brief description.
+       
+       Detailed description of what the tool does.
+       
+       Args:
+           project_id: Project identifier (optional)
+           project_name: Project name (optional)
+           workspace_path: Workspace path (optional)
+           
+       Returns:
+           Dictionary with result
+       """
+       # Implementation
+       pass
+   ```
 
-Example:
+2. **Register in tool_manager.py**:
+   ```python
+   @server.tool()
+   async def my_new_tool(...):
+       """Docstring here."""
+       return await memory_tools.my_new_tool(...)
+   ```
 
-```python
-# src/coordmcp/tools/memory_tools.py
+3. **Add tests**:
+   ```python
+   # tests/unit/test_tools/test_memory_tools.py
+   
+   @pytest.mark.asyncio
+   async def test_my_new_tool():
+       """Test my_new_tool."""
+       result = await my_new_tool(project_id="test")
+       assert result["success"]
+   ```
 
-@mcp.tool()
-async def my_new_tool(
-    project_id: str,
-    data: str,
-    config: Config = Depends(get_config)
-) -> dict:
-    """Brief description of what the tool does.
-    
-    Args:
-        project_id: The project identifier
-        data: Description of the data parameter
-        
-    Returns:
-        Dictionary with operation result
-        
-    Raises:
-        ProjectNotFoundError: If project doesn't exist
-        
-    Example:
-        >>> result = await my_new_tool("proj-123", "example data")
-        >>> print(result["status"])
-        'success'
-    """
-    # Implementation here
-    pass
-```
-
-### Adding New Resources
-
-1. Create resource function in appropriate `resources/` file
-2. Define URI pattern
-3. Register in `resource_manager.py`
-4. Add tests
+4. **Update documentation**:
+   - Add to README.md tool list
+   - Update API_REFERENCE.md
+   - Add example if needed
 
 ### Adding Validation
-
-Use the validation decorators:
 
 ```python
 from coordmcp.utils.validation import (
@@ -337,34 +413,98 @@ from coordmcp.utils.validation import (
     validate_enum_field
 )
 
-@validate_required_fields("project_id", "title")
+@validate_required_fields("title", "rationale")
 @validate_project_id
-@validate_enum_field("priority", ["low", "medium", "high"])
 async def save_decision(
     project_id: str,
     title: str,
-    priority: str = "medium",
+    rationale: str,
     **kwargs
-) -> dict:
-    """Save a decision with validation."""
+) -> Dict[str, Any]:
+    """Save decision with validation."""
     pass
 ```
 
-### Error Handling
+## Submitting Contributions
 
-Always use custom exceptions:
+### Pull Request Process
 
-```python
-from coordmcp.errors import ProjectNotFoundError, ValidationError
+1. **Create a branch** from `main`:
+   ```bash
+   git checkout -b feature/my-feature
+   ```
 
-async def get_project(project_id: str) -> dict:
-    project = await storage.read(f"projects/{project_id}.json")
-    if not project:
-        raise ProjectNotFoundError(f"Project {project_id} not found")
-    return project
-```
+2. **Make your changes** with focused commits
 
-## Questions?
+3. **Run tests** locally:
+   ```bash
+   python -m pytest src/tests/ -v
+   ```
+
+4. **Update documentation**:
+   - Update README.md if adding features
+   - Update CHANGELOG.md
+   - Add/update docstrings
+
+5. **Push your branch**:
+   ```bash
+   git push origin feature/my-feature
+   ```
+
+6. **Create Pull Request** on GitHub:
+   - Fill out the PR template
+   - Link related issues
+   - Request review from maintainers
+
+### PR Checklist
+
+Before submitting:
+
+- [ ] Code follows style guidelines
+- [ ] All tests pass locally
+- [ ] New tests added for new features
+- [ ] Documentation updated
+- [ ] CHANGELOG.md updated
+- [ ] No breaking changes (or documented)
+- [ ] Commit messages follow conventions
+- [ ] PR description is clear
+
+### Review Process
+
+- Maintainers will review within 48 hours
+- Address review comments promptly
+- Be open to feedback and suggestions
+- Ask questions if anything is unclear
+
+## Release Process
+
+### Version Numbering
+
+We follow Semantic Versioning (SemVer):
+- `MAJOR.MINOR.PATCH`
+- Major: Breaking changes
+- Minor: New features (backward compatible)
+- Patch: Bug fixes
+
+### Creating a Release
+
+1. **Update version** in `pyproject.toml`
+2. **Update CHANGELOG.md** with release notes
+3. **Create git tag**:
+   ```bash
+   git tag -a v0.2.0 -m "Release version 0.2.0"
+   git push origin v0.2.0
+   ```
+4. **Build package**:
+   ```bash
+   python -m build
+   ```
+5. **Upload to PyPI**:
+   ```bash
+   twine upload dist/*
+   ```
+
+## Getting Help
 
 - 📧 Email: support@coordmcp.dev
 - 💬 Discord: [Join our community](https://discord.gg/coordmcp)
