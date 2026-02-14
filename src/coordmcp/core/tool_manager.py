@@ -15,6 +15,7 @@ from fastmcp import FastMCP
 from coordmcp.tools import memory_tools
 from coordmcp.tools import context_tools
 from coordmcp.tools import architecture_tools
+from coordmcp.tools import discovery_tools
 from coordmcp.logger import get_logger
 
 logger = get_logger("tools")
@@ -46,6 +47,7 @@ def register_all_tools(server: FastMCP) -> FastMCP:
     _register_memory_tools(server)
     _register_context_tools(server)
     _register_architecture_tools(server)
+    _register_discovery_tools(server)
     
     logger.info("All tools registered successfully")
     return server
@@ -1156,3 +1158,187 @@ def _register_architecture_tools(server: FastMCP) -> None:
         )
     
     logger.debug("Architecture tools registered")
+
+
+def _register_discovery_tools(server: FastMCP) -> None:
+    """
+    Register project and agent discovery tools.
+    
+    These tools enable agents to:
+    - Discover existing projects by workspace path
+    - Browse and search for projects
+    - Find active agents and their activities
+    - Get project information using flexible identifiers
+    """
+    logger.debug("Registering discovery tools...")
+    
+    # ==================== Project Discovery Tools ====================
+    
+    @server.tool()
+    async def discover_project(
+        path: str = None,
+        max_parent_levels: int = 3
+    ):
+        """
+        Discover a CoordMCP project by searching from a directory path.
+        
+        ESSENTIAL FOR: Joining existing projects, auto-discovering context
+        
+        This tool searches for a project associated with the given directory.
+        It first checks for an exact match, then searches up to 3 parent directories.
+        
+        WHEN TO USE:
+        - Starting work in a project directory and want to see if it's tracked
+        - Navigating to a subdirectory and finding the parent project
+        - Auto-discovering projects when you don't know the project_id
+        - First step when joining an existing project
+        
+        WORKFLOW:
+        1. discover_project() - Find the project
+        2. register_agent() - Register yourself
+        3. get_project_info() - Get full project details
+        4. get_active_agents() - See who's working on it
+        5. start_context() - Begin working
+        
+        Args:
+            path: Directory path to search from (optional, defaults to current working directory)
+            max_parent_levels: Maximum parent directories to search (default: 3)
+            
+        Returns:
+            Dictionary with discovery results including project details if found
+            
+        Example:
+            >>> # Auto-discover in current directory
+            >>> result = await discover_project()
+            >>> 
+            >>> # Search from specific path
+            >>> result = await discover_project(path="/home/user/projects/myapp/src/components")
+        """
+        return await discovery_tools.discover_project(path, max_parent_levels)
+    
+    @server.tool()
+    async def get_project(
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None
+    ):
+        """
+        Get project information by ID, name, or workspace path.
+        
+        ESSENTIAL FOR: Flexible project lookup when you have partial information
+        
+        This tool provides flexible project lookup. You can specify any combination
+        of identifiers, and it will resolve to the matching project.
+        
+        Priority: project_id > workspace_path > project_name
+        
+        WHEN TO USE:
+        - You know the project_id and want full details
+        - You only know the project name
+        - You have the workspace path and want to find the project
+        - Validating that multiple identifiers point to the same project
+        
+        Args:
+            project_id: Project ID (e.g., "proj-abc-123")
+            project_name: Project name (e.g., "My App")
+            workspace_path: Workspace directory path (e.g., "/home/user/projects/myapp")
+            
+        Returns:
+            Dictionary with complete project details
+            
+        Examples:
+            >>> # Get by ID
+            >>> await get_project(project_id="proj-abc-123")
+            >>> 
+            >>> # Get by name
+            >>> await get_project(project_name="My App")
+            >>> 
+            >>> # Get by path
+            >>> await get_project(workspace_path="/home/user/projects/myapp")
+        """
+        return await discovery_tools.get_project(project_id, project_name, workspace_path)
+    
+    @server.tool()
+    async def list_projects(
+        status: str = "active",
+        workspace_base: str = None,
+        include_archived: bool = False
+    ):
+        """
+        List all CoordMCP projects with optional filtering.
+        
+        ESSENTIAL FOR: Browsing available projects, finding work to join
+        
+        This tool provides a comprehensive view of all projects in the system.
+        Useful for browsing available projects before selecting one to work on.
+        
+        WHEN TO USE:
+        - See all projects in the system
+        - Find projects under a specific directory
+        - Check which projects are active vs archived
+        - Get an overview of all tracked work
+        
+        Args:
+            status: Filter by status - "active", "archived", or "all" (default: "active")
+            workspace_base: Optional base directory to filter projects (e.g., "/home/user/projects")
+            include_archived: Whether to include archived projects (default: False)
+            
+        Returns:
+            Dictionary with list of projects including metadata
+            
+        Examples:
+            >>> # List all active projects
+            >>> await list_projects()
+            >>> 
+            >>> # List all projects including archived
+            >>> await list_projects(include_archived=True)
+            >>> 
+            >>> # List projects under specific directory
+            >>> await list_projects(workspace_base="/home/user/projects")
+        """
+        return await discovery_tools.list_projects(status, workspace_base, include_archived)
+    
+    # ==================== Agent Discovery Tools ====================
+    
+    @server.tool()
+    async def get_active_agents(
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None
+    ):
+        """
+        Get information about active agents.
+        
+        ESSENTIAL FOR: Understanding team activity and coordination
+        
+        This tool shows which agents are currently working, optionally filtered
+        by a specific project. Useful for understanding team activity and
+        coordinating with other agents.
+        
+        WHEN TO USE:
+        - See all active agents across all projects
+        - Check who's working on a specific project before joining
+        - Monitor team activity and coordination opportunities
+        - Find collaborators or check for potential conflicts
+        
+        Args:
+            project_id: Optional project ID to filter by
+            project_name: Optional project name to filter by
+            workspace_path: Optional workspace path to filter by
+            
+        Returns:
+            Dictionary with list of active agents and their current activities
+            
+        Examples:
+            >>> # Get all active agents
+            >>> await get_active_agents()
+            >>> 
+            >>> # Get agents working on specific project
+            >>> await get_active_agents(project_id="proj-abc-123")
+            >>> 
+            >>> # Get agents by project name
+            >>> await get_active_agents(project_name="My App")
+        """
+        return await discovery_tools.get_active_agents(project_id, project_name, workspace_path)
+    
+    logger.debug("Discovery tools registered")

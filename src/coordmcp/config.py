@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 from dotenv import load_dotenv
 
+from coordmcp import __version__
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -32,12 +34,47 @@ class Config:
     enable_compression: bool = False
     
     # Version
-    version: str = "0.1.0"
+    version: str = __version__
     
     def __post_init__(self):
         """Initialize derived paths."""
         if self.log_file is None:
             self.log_file = self.data_dir / "logs" / "coordmcp.log"
+
+
+def expand_path_variables(path: str) -> str:
+    """
+    Expand variables in path strings.
+    
+    Supports:
+    - ${WorkspaceFolder} or ${workspaceFolder} - Current working directory
+    - ${HOME} or ~ - User home directory
+    - ${USER} - Current username
+    - Environment variables
+    """
+    import getpass
+    
+    # Expand environment variables
+    path = os.path.expandvars(path)
+    
+    # Expand user home (~)
+    path = os.path.expanduser(path)
+    
+    # Handle WorkspaceFolder variables (OpenCode/VSCode convention)
+    if "${WorkspaceFolder}" in path or "${workspaceFolder}" in path:
+        # Try to get from environment first
+        workspace = os.getenv("WORKSPACE_FOLDER") or os.getenv("workspaceFolder")
+        if not workspace:
+            # Fall back to current working directory
+            workspace = os.getcwd()
+        path = path.replace("${WorkspaceFolder}", workspace)
+        path = path.replace("${workspaceFolder}", workspace)
+    
+    # Handle USER variable if not already expanded
+    if "${USER}" in path:
+        path = path.replace("${USER}", getpass.getuser())
+    
+    return path
 
 
 def load_config() -> Config:
@@ -46,7 +83,9 @@ def load_config() -> Config:
     
     # Override with environment variables if set
     if data_dir := os.getenv("COORDMCP_DATA_DIR"):
-        config.data_dir = Path(data_dir)
+        # Expand any variables in the path
+        expanded_path = expand_path_variables(data_dir)
+        config.data_dir = Path(expanded_path)
     
     if log_level := os.getenv("COORDMCP_LOG_LEVEL"):
         config.log_level = log_level

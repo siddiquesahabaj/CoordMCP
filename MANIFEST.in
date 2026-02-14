@@ -1,0 +1,22 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include SECURITY.md
+include CONTRIBUTING.md
+recursive-include src/coordmcp *.py
+
+exclude docs/**
+exclude tests/**
+exclude .github/**
+exclude .gitignore
+exclude .env
+exclude .env.example
+exclude Makefile
+exclude opencode-config.jsonc
+exclude SYSTEM_PROMPT.md
+exclude venv/**
+exclude .pytest_cache/**
+exclude **/__pycache__/**
+exclude **/*.pyc
+exclude **/*.pyo
+exclude **/*.pyd

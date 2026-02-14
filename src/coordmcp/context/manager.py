@@ -98,7 +98,10 @@ class ContextManager:
         version: str = "1.0.0"
     ) -> str:
         """
-        Register a new agent in the global registry.
+        Register a new agent or reconnect to an existing agent.
+        
+        If an agent with the same name already exists, reconnects to that agent
+        and updates their last_active timestamp. Otherwise, creates a new agent.
         
         Args:
             agent_name: Name of the agent
@@ -107,8 +110,33 @@ class ContextManager:
             version: Agent version
             
         Returns:
-            Agent ID
+            Agent ID (existing or new)
         """
+        # Load registry first to check for existing agent
+        registry = self._load_agent_registry()
+        
+        # Check if agent with this name already exists
+        existing_agent_id = None
+        existing_profile = None
+        for aid, profile in registry.items():
+            if profile.agent_name == agent_name and profile.status == "active":
+                existing_agent_id = aid
+                existing_profile = profile
+                break
+        
+        if existing_agent_id:
+            # Reconnect to existing agent
+            existing_profile.last_active = datetime.now()
+            existing_profile.version = version
+            # Update capabilities if provided
+            if capabilities:
+                existing_profile.capabilities = capabilities
+            
+            self._save_agent_registry(registry)
+            logger.info(f"Reconnected to existing agent '{agent_name}' with ID {existing_agent_id}")
+            return existing_agent_id
+        
+        # Create new agent
         agent_id = str(uuid4())
         
         # Convert string to enum
@@ -129,12 +157,11 @@ class ContextManager:
             status="active"
         )
         
-        # Load registry and add agent
-        registry = self._load_agent_registry()
+        # Add new agent to registry
         registry[agent_id] = profile
         self._save_agent_registry(registry)
         
-        logger.info(f"Registered agent '{agent_name}' ({agent_type}) with ID {agent_id}")
+        logger.info(f"Registered new agent '{agent_name}' ({agent_type}) with ID {agent_id}")
         
         return agent_id
     

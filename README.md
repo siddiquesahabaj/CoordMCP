@@ -20,13 +20,28 @@ CoordMCP is a FastMCP-based Model Context Protocol server designed to enable int
 
 ### Installation
 
+#### From PyPI (Recommended for Users)
+
+```bash
+# Install the latest stable version
+pip install coordmcp
+
+# Or install with development dependencies
+pip install coordmcp[dev]
+```
+
+#### From Source (For Development)
+
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/coordmcp.git
 cd coordmcp
 
-# Install dependencies
+# Install in editable mode for development
 pip install -e .
+
+# Or install with development dependencies
+pip install -e ".[dev]"
 ```
 
 ### Running the Server

@@ -545,7 +545,24 @@ class ProjectInfo(BaseEntity):
     project_id: str = Field(..., description="Unique project ID")
     project_name: str = Field(..., min_length=1, max_length=200)
     description: str = Field(default="")
+    workspace_path: str = Field(..., description="Absolute path to project workspace directory")
     schema_version: str = Field(default=SCHEMA_VERSION)
+    
+    @validator('workspace_path')
+    def validate_workspace_path(cls, v):
+        """Validate workspace path is absolute and normalized."""
+        import os
+        if not v:
+            raise ValueError("workspace_path is required")
+        
+        # Normalize path
+        v = os.path.normpath(v)
+        
+        # Check if absolute path (Windows or Unix)
+        if not os.path.isabs(v):
+            raise ValueError(f"workspace_path must be an absolute path, got: {v}")
+        
+        return v
 
 
 class PaginatedChanges(BaseModel):

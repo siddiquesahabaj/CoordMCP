@@ -32,35 +32,62 @@ from tests.utils.assertions import assert_project_exists, assert_valid_uuid
 class TestProjectCreation:
     """Test project creation operations."""
     
-    def test_create_project_returns_valid_uuid(self, memory_store):
+    def test_create_project_returns_valid_uuid(self, memory_store, fresh_temp_dir):
         """Test that create_project returns a valid UUID."""
+        workspace = fresh_temp_dir / "new_project"
+        workspace.mkdir()
+        
         project_id = memory_store.create_project(
             project_name="New Project",
-            description="A test project"
+            description="A test project",
+            workspace_path=str(workspace)
         )
         
         assert_valid_uuid(project_id)
     
-    def test_create_project_makes_project_exist(self, memory_store):
+    def test_create_project_makes_project_exist(self, memory_store, fresh_temp_dir):
         """Test that created project exists in store."""
+        workspace = fresh_temp_dir / "test_project"
+        workspace.mkdir()
+        
         project_id = memory_store.create_project(
             project_name="Test Project",
-            description="Test description"
+            description="Test description",
+            workspace_path=str(workspace)
         )
         
         assert_project_exists(memory_store, project_id)
     
-    def test_create_project_stores_correct_info(self, memory_store):
+    def test_create_project_stores_correct_info(self, memory_store, fresh_temp_dir):
         """Test that project info is stored correctly."""
+        workspace = fresh_temp_dir / "my_project"
+        workspace.mkdir()
+        
         project_id = memory_store.create_project(
             project_name="My Project",
-            description="My description"
+            description="My description",
+            workspace_path=str(workspace)
         )
         
         project_info = memory_store.get_project_info(project_id)
         assert project_info.project_name == "My Project"
         assert project_info.description == "My description"
+        assert project_info.workspace_path == str(workspace)
         assert project_info.schema_version == "1.2.0"
+    
+    def test_create_project_stores_workspace_path(self, memory_store, fresh_temp_dir):
+        """Test that create_project stores workspace_path correctly."""
+        workspace = fresh_temp_dir / "test_workspace"
+        workspace.mkdir()
+        
+        project_id = memory_store.create_project(
+            project_name="Test Project",
+            description="Test description",
+            workspace_path=str(workspace)
+        )
+        
+        project_info = memory_store.get_project_info(project_id)
+        assert project_info.workspace_path == str(workspace)
 
 
 @pytest.mark.unit
@@ -415,9 +442,11 @@ class TestRelationships:
 class TestProjectDeletion:
     """Test project deletion operations."""
     
-    def test_soft_delete_project(self, memory_store):
+    def test_soft_delete_project(self, memory_store, fresh_temp_dir):
         """Test that projects can be soft deleted."""
-        project_id = memory_store.create_project("To Delete", "Will be deleted")
+        workspace = fresh_temp_dir / "to_delete"
+        workspace.mkdir()
+        project_id = memory_store.create_project("To Delete", "Will be deleted", str(workspace))
         
         # Soft delete
         memory_store.delete_project(project_id, agent_id="test-agent", soft=True)
@@ -427,9 +456,11 @@ class TestProjectDeletion:
         assert project.is_deleted is True
         assert project.deleted_at is not None
     
-    def test_hard_delete_project(self, memory_store):
+    def test_hard_delete_project(self, memory_store, fresh_temp_dir):
         """Test that projects can be hard deleted."""
-        project_id = memory_store.create_project("To Delete", "Will be deleted")
+        workspace = fresh_temp_dir / "to_delete_hard"
+        workspace.mkdir()
+        project_id = memory_store.create_project("To Delete", "Will be deleted", str(workspace))
         
         # Add some data
         decision = DecisionFactory.create()

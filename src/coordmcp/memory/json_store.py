@@ -72,13 +72,14 @@ class ProjectMemoryStore:
     
     # ==================== Project Management ====================
     
-    def create_project(self, project_name: str, description: str = "") -> str:
+    def create_project(self, project_name: str, description: str = "", workspace_path: str = "") -> str:
         """
         Create a new project.
         
         Args:
             project_name: Name of the project
             description: Project description
+            workspace_path: Absolute path to the project workspace directory (required)
             
         Returns:
             Project ID
@@ -89,6 +90,7 @@ class ProjectMemoryStore:
             project_id=project_id,
             project_name=project_name,
             description=description,
+            workspace_path=workspace_path,
             created_by="system"
         )
         

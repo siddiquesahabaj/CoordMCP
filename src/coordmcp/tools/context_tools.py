@@ -12,6 +12,7 @@ from coordmcp.context.file_tracker import FileTracker
 from coordmcp.memory.json_store import ProjectMemoryStore
 from coordmcp.logger import get_logger
 from coordmcp.errors import FileLockError
+from coordmcp.tools.memory_tools import resolve_project_id
 
 logger = get_logger("tools.context")
 
@@ -44,16 +45,29 @@ async def register_agent(
     version: str = "1.0.0"
 ) -> Dict[str, Any]:
     """
-    Register a new agent in the global registry.
+    Register a new agent or reconnect to an existing agent.
+    
+    If an agent with the same name already exists and is active, this will
+    reconnect to that agent instead of creating a new one. This enables
+    session persistence across multiple OpenCode/Agent sessions.
     
     Args:
-        agent_name: Name of the agent
+        agent_name: Name of the agent (e.g., "OpenCode", "Cursor", "ClaudeCode")
         agent_type: Type (opencode, cursor, claude_code, custom)
         capabilities: List of agent capabilities
         version: Agent version
         
     Returns:
         Dictionary with agent_id and success status
+        
+    Example:
+        # First session - creates new agent
+        result = await register_agent("OpenCode", "opencode", ["python", "fastapi"])
+        # Returns: {"success": True, "agent_id": "abc-123", "message": "..."}
+        
+        # Second session - reconnects to same agent
+        result = await register_agent("OpenCode", "opencode", ["python", "fastapi"])
+        # Returns: {"success": True, "agent_id": "abc-123", "message": "..."} (same ID!)
     """
     # Input validation
     if not agent_name or not isinstance(agent_name, str):
@@ -107,10 +121,19 @@ async def register_agent(
             version=version
         )
         
+        # Check if this was a reconnection by looking at existing agents
+        all_agents = manager.get_all_agents()
+        is_reconnect = any(a.agent_name == agent_name and a.agent_id == agent_id and a.total_sessions > 0 for a in all_agents)
+        
+        if is_reconnect:
+            message = f"Agent '{agent_name}' reconnected successfully. Previous context restored."
+        else:
+            message = f"Agent '{agent_name}' registered successfully"
+        
         return {
             "success": True,
             "agent_id": agent_id,
-            "message": f"Agent '{agent_name}' registered successfully"
+            "message": message
         }
     except ValueError as e:
         logger.error(f"Validation error registering agent: {e}")
@@ -198,8 +221,10 @@ async def get_agent_profile(agent_id: str) -> Dict[str, Any]:
 
 async def start_context(
     agent_id: str,
-    project_id: str,
-    objective: str,
+    project_id: Optional[str] = None,
+    project_name: Optional[str] = None,
+    workspace_path: Optional[str] = None,
+    objective: str = "",
     task_description: str = "",
     priority: str = "medium",
     current_file: str = ""
@@ -209,7 +234,9 @@ async def start_context(
     
     Args:
         agent_id: Agent ID
-        project_id: Project ID
+        project_id: Project ID (optional if project_name or workspace_path provided)
+        project_name: Project name to look up (alternative to project_id)
+        workspace_path: Workspace path to look up (alternative to project_id)
         objective: Current objective
         task_description: Detailed task description
         priority: Priority level (critical, high, medium, low)
@@ -217,6 +244,16 @@ async def start_context(
         
     Returns:
         Dictionary with context information
+        
+    Examples:
+        # By project ID
+        result = await start_context("agent-123", project_id="proj-456", objective="Fix bug")
+        
+        # By project name
+        result = await start_context("agent-123", project_name="My Project", objective="Fix bug")
+        
+        # By workspace path
+        result = await start_context("agent-123", workspace_path="/path/to/project", objective="Fix bug")
     """
     try:
         manager = get_context_manager()
@@ -231,18 +268,30 @@ async def start_context(
                 "error_type": "AgentNotFound"
             }
         
+        # Resolve project
+        success, resolved_id, message = resolve_project_id(
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path
+        )
+        if not success:
+            return {"success": False, "error": message, "error_type": "ProjectNotFound"}
+        
+        # Type assertion: resolved_id is guaranteed to be str when success is True
+        assert resolved_id is not None
+        
         # Check if project exists
-        if not memory_store.project_exists(project_id):
+        if not memory_store.project_exists(resolved_id):
             return {
                 "success": False,
-                "error": f"Project {project_id} not found",
+                "error": f"Project {resolved_id} not found",
                 "error_type": "ProjectNotFound"
             }
         
         # Start context
         context = manager.start_context(
             agent_id=agent_id,
-            project_id=project_id,
+            project_id=resolved_id,
             objective=objective,
             task_description=task_description,
             priority=priority,
@@ -518,29 +567,57 @@ async def unlock_files(
         }
 
 
-async def get_locked_files(project_id: str) -> Dict[str, Any]:
+async def get_locked_files(
+    project_id: Optional[str] = None,
+    project_name: Optional[str] = None,
+    workspace_path: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Get list of currently locked files in a project.
     
     Args:
-        project_id: Project ID
+        project_id: Project ID (optional if project_name or workspace_path provided)
+        project_name: Project name to look up (alternative to project_id)
+        workspace_path: Workspace path to look up (alternative to project_id)
         
     Returns:
         Dictionary with locked files by agent
+        
+    Examples:
+        # By project ID
+        result = await get_locked_files(project_id="proj-456")
+        
+        # By project name
+        result = await get_locked_files(project_name="My Project")
+        
+        # By workspace path
+        result = await get_locked_files(workspace_path="/path/to/project")
     """
     try:
         tracker = get_file_tracker()
         memory_store = get_memory_store()
         
+        # Resolve project
+        success, resolved_id, message = resolve_project_id(
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path
+        )
+        if not success:
+            return {"success": False, "error": message, "error_type": "ProjectNotFound"}
+        
+        # Type assertion: resolved_id is guaranteed to be str when success is True
+        assert resolved_id is not None
+        
         # Check if project exists
-        if not memory_store.project_exists(project_id):
+        if not memory_store.project_exists(resolved_id):
             return {
                 "success": False,
-                "error": f"Project {project_id} not found",
+                "error": f"Project {resolved_id} not found",
                 "error_type": "ProjectNotFound"
             }
         
-        result = tracker.get_locked_files(project_id)
+        result = tracker.get_locked_files(resolved_id)
         
         return result
         
@@ -615,29 +692,57 @@ async def get_session_log(agent_id: str, limit: int = 50) -> Dict[str, Any]:
         }
 
 
-async def get_agents_in_project(project_id: str) -> Dict[str, Any]:
+async def get_agents_in_project(
+    project_id: Optional[str] = None,
+    project_name: Optional[str] = None,
+    workspace_path: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Get all agents currently working in a project.
     
     Args:
-        project_id: Project ID
+        project_id: Project ID (optional if project_name or workspace_path provided)
+        project_name: Project name to look up (alternative to project_id)
+        workspace_path: Workspace path to look up (alternative to project_id)
         
     Returns:
         Dictionary with list of active agents
+        
+    Examples:
+        # By project ID
+        result = await get_agents_in_project(project_id="proj-456")
+        
+        # By project name
+        result = await get_agents_in_project(project_name="My Project")
+        
+        # By workspace path
+        result = await get_agents_in_project(workspace_path="/path/to/project")
     """
     try:
         manager = get_context_manager()
         memory_store = get_memory_store()
         
+        # Resolve project
+        success, resolved_id, message = resolve_project_id(
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path
+        )
+        if not success:
+            return {"success": False, "error": message, "error_type": "ProjectNotFound"}
+        
+        # Type assertion: resolved_id is guaranteed to be str when success is True
+        assert resolved_id is not None
+        
         # Check if project exists
-        if not memory_store.project_exists(project_id):
+        if not memory_store.project_exists(resolved_id):
             return {
                 "success": False,
-                "error": f"Project {project_id} not found",
+                "error": f"Project {resolved_id} not found",
                 "error_type": "ProjectNotFound"
             }
         
-        agents = manager.get_agents_in_project(project_id)
+        agents = manager.get_agents_in_project(resolved_id)
         
         return {
             "success": True,
