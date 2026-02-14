@@ -5,19 +5,26 @@ This module initializes the CoordMCP server, registers all tools and resources,
 and starts the FastMCP server to handle client connections.
 
 Usage:
-    python -m coordmcp.main
+    coordmcp [options]
+    python -m coordmcp [options]
+    
+Options:
+    --version   Show version number and exit
+    --help      Show help message and exit
     
 Environment Variables:
     COORDMCP_DATA_DIR: Data storage directory (default: ~/.coordmcp/data)
     COORDMCP_LOG_LEVEL: Log level (default: INFO)
 """
 
+import argparse
 import sys
 from pathlib import Path
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from coordmcp import __version__
 from coordmcp.core.server import create_server
 from coordmcp.core.tool_manager import register_all_tools
 from coordmcp.core.resource_manager import register_all_resources
@@ -31,12 +38,28 @@ def main():
     Main entry point for the CoordMCP server.
     
     This function:
-    1. Creates the FastMCP server
-    2. Registers all tools (29 tools)
-    3. Registers all resources (14 resources)
-    4. Starts the server
+    1. Parses command line arguments
+    2. Creates the FastMCP server
+    3. Registers all tools (35+ tools)
+    4. Registers all resources (14+ resources)
+    5. Starts the server
     """
-    logger.info("Starting CoordMCP server...")
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="CoordMCP - A FastMCP-based Model Context Protocol server for intelligent multi-agent code coordination",
+        prog="coordmcp"
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}"
+    )
+    
+    # Parse args (will exit if --version or --help is passed)
+    args = parser.parse_args()
+    
+    # Start the server
+    logger.info(f"Starting CoordMCP server v{__version__}...")
     
     # Create the server
     server = create_server()
