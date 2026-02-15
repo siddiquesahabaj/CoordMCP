@@ -101,8 +101,6 @@ Create an `opencode.jsonc` file in your project root:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "name": "CoordMCP Configuration",
-  "description": "Configuration for using CoordMCP with OpenCode",
   
   "mcp": {
     "coordmcp": {
@@ -110,95 +108,14 @@ Create an `opencode.jsonc` file in your project root:
       "command": ["python", "-m", "coordmcp"],
       "enabled": true,
       "environment": {
-        "COORDMCP_DATA_DIR": "${workspaceFolder}/.coordmcp/data",
         "COORDMCP_LOG_LEVEL": "INFO"
       }
     }
   },
-  
-  "tools": {
-    "coordmcp_*": true
-  },
-  
-  "agent": {
-    "default": {
-      "system": [
-        "You are an intelligent coding assistant integrated with CoordMCP.",
-        "",
-        "=== CRITICAL WORKFLOW ===",
-        "For EVERY project, you MUST follow this sequence:",
-        "",
-        "1. Discover or Create Project:",
-        "   - Try: await coordmcp_discover_project(path=os.getcwd())",
-        "   - If not found: await coordmcp_create_project(name, workspace_path=os.getcwd(), description)",
-        "",
-        "2. Register as Agent:",
-        "   - await coordmcp_register_agent(name='YourName', type='opencode', capabilities=['python', 'react'])",
-        "",
-        "3. Start Context:",
-        "   - await coordmcp_start_context(agent_id, project_id, objective='Your objective')",
-        "",
-        "4. Work with Coordination:",
-        "   - Check active agents: await coordmcp_get_active_agents(project_id)",
-        "   - Check locked files: await coordmcp_get_locked_files(project_id)",
-        "   - Lock files before editing: await coordmcp_lock_files(agent_id, project_id, files=['src/file.py'])",
-        "   - Record decisions: await coordmcp_save_decision(project_id, title, description, rationale)",
-        "   - Update tech stack: await coordmcp_update_tech_stack(project_id, category, technology)",
-        "   - Log changes: await coordmcp_log_change(project_id, file_path, change_type, description)",
-        "   - Unlock files when done: await coordmcp_unlock_files(agent_id, project_id, files)",
-        "",
-        "5. End Session:",
-        "   - await coordmcp_end_context(agent_id, summary='What you completed')",
-        "",
-        "Always use workspace_path=os.getcwd() for the current project directory."
-      ]
-    }
-  }
 }
 ```
 
-### Claude Code Configuration
-
-For Claude Code, add to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "coordmcp": {
-      "command": "python",
-      "args": ["-m", "coordmcp"],
-      "env": {
-        "COORDMCP_DATA_DIR": "~/.coordmcp/data",
-        "COORDMCP_LOG_LEVEL": "INFO"
-      }
-    }
-  }
-}
-```
-
-**Config file locations:**
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Windows: `%AppData%\Claude\claude_desktop_config.json`
-- Linux: `~/.config/Claude/claude_desktop_config.json`
-
-### Cursor Configuration
-
-Add to your `.cursorrules` or Cursor settings:
-
-```
-[CoordMCP Integration]
-
-You are integrated with CoordMCP for multi-agent coordination.
-
-WORKFLOW:
-1. Discover project: await coordmcp_discover_project(path=os.getcwd())
-2. Register agent: await coordmcp_register_agent(name='Cursor', type='cursor', capabilities=[])
-3. Start context: await coordmcp_start_context(agent_id, project_id, objective)
-4. Lock files before editing: await coordmcp_lock_files(agent_id, project_id, files)
-5. Record decisions and log changes
-6. Unlock files when done: await coordmcp_unlock_files(agent_id, project_id, files)
-7. End context: await coordmcp_end_context(agent_id, summary)
-```
+Optional (But Recommended) : Create a system prompt configuration file in project directory and copy paste the content of `SYSTEM_PROMPT.md`
 
 ## 🏃 Getting Started
 
