@@ -1,0 +1,135 @@
+# Windsurf Integration
+
+Complete setup guide for using CoordMCP with Windsurf IDE.
+
+## Prerequisites
+
+- Windsurf IDE installed
+- Python 3.10+ installed
+- CoordMCP installed (`pip install coordmcp`)
+
+## Quick Setup
+
+### 1. Install CoordMCP
+
+```bash
+pip install coordmcp
+coordmcp --version
+```
+
+### 2. Configure Windsurf
+
+Create or edit the Windsurf MCP configuration.
+
+**Location:** Windsurf Settings → MCP or `~/.windsurf/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "python",
+      "args": ["-m", "coordmcp"],
+      "env": {
+        "COORDMCP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+### 3. Restart Windsurf
+
+Close and reopen Windsurf to load the MCP tools.
+
+### 4. Test It
+
+In Windsurf, say:
+
+> "What CoordMCP tools are available?"
+
+If Windsurf responds with tool information, you're all set!
+
+## Usage
+
+Just talk to Windsurf normally. CoordMCP works automatically.
+
+### Example: Building an Application
+
+**You say:**
+> "Create a real-time chat application"
+
+**What happens automatically:**
+1. Project discovered or created
+2. Agent registered
+3. WebSocket pattern recommended
+4. Files locked before editing
+5. All changes tracked
+
+### Example: Multi-Agent Coordination
+
+**You say:**
+> "I'm working on the frontend, what's the backend agent doing?"
+
+**What happens:**
+1. Checks active agents
+2. Shows what other agents are working on
+3. Shows locked files
+4. Helps you coordinate work
+
+## Configuration Options
+
+### Custom Data Directory
+
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "env": {
+        "COORDMCP_DATA_DIR": "/path/to/custom/data"
+      }
+    }
+  }
+}
+```
+
+### Debug Logging
+
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "env": {
+        "COORDMCP_LOG_LEVEL": "DEBUG"
+      }
+    }
+  }
+}
+```
+
+## Troubleshooting
+
+### "MCP servers not loading"
+
+1. Verify installation: `coordmcp --version`
+2. Check config location
+3. Verify JSON syntax
+
+### "Python not found"
+
+Use full path:
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "/usr/bin/python3",
+      "args": ["-m", "coordmcp"]
+    }
+  }
+}
+```
+
+## Next Steps
+
+- [How It Works](../how-it-works.md) - Understand what happens behind the scenes
+- [API Reference](../../developer-guide/api-reference.md) - See all available tools
+- [Troubleshooting](../../reference/troubleshooting.md) - More solutions

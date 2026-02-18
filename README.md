@@ -3,363 +3,164 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastMCP](https://img.shields.io/badge/FastMCP-powered-green.svg)](https://github.com/jlowin/fastmcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.1.0-orange.svg)](https://github.com/yourusername/coordmcp/releases)
 
-**CoordMCP** is a powerful [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that enables intelligent coordination between multiple AI coding agents. It provides shared long-term memory, context management, file locking, and architectural guidance - all without requiring additional LLM API calls.
+CoordMCP is a coordination server that helps multiple AI coding agents work together on the same project without conflicts.
 
-## 🌟 What is CoordMCP?
+## Why CoordMCP?
 
-CoordMCP solves the multi-agent coordination problem by acting as a central hub where AI agents can:
+When you use AI coding assistants (OpenCode, Cursor, Claude Code, Windsurf) on a project:
 
-- **Share project memory** across sessions and agents
-- **Prevent file conflicts** through intelligent locking
-- **Track technical decisions** with rationale and context
-- **Maintain project context** across multiple work sessions
-- **Get architecture recommendations** using rule-based analysis
-- **Coordinate work** between multiple agents simultaneously
+- **Lost decisions** - The AI forgets what was decided in previous sessions
+- **Inconsistent choices** - Different sessions make different architectural decisions  
+- **No coordination** - Multiple AI agents don't know what each other is doing
+- **No history** - There's no record of why certain decisions were made
 
-### Why CoordMCP?
+**CoordMCP solves this** by giving your AI agents a shared brain that persists across sessions.
 
-When multiple AI agents (OpenCode, Cursor, Claude Code, etc.) work on the same project, they often:
-- ❌ Overwrite each other's changes
-- ❌ Forget decisions made in previous sessions
-- ❌ Lack visibility into what other agents are doing
-- ❌ Make inconsistent architectural choices
+## How It Works
 
-**CoordMCP solves all of these problems** with a unified coordination layer that persists project state and enables seamless multi-agent collaboration.
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│     YOU     │────▶│  AI AGENT   │────▶│  CoordMCP   │
+│             │     │             │     │   Server    │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                               │
+                                               ▼
+                                    ┌─────────────────┐
+                                    │  Shared Memory  │
+                                    │  • Decisions    │
+                                    │  • Tech Stack   │
+                                    │  • File Locks   │
+                                    └─────────────────┘
+```
 
-## ✨ Key Features
+**You just talk to your AI agent normally.** CoordMCP works automatically in the background:
 
-### 🧠 Long-Term Memory
-- Store and retrieve **architectural decisions** with full context
-- Track **technology stack** across the entire project
-- Maintain **change history** with impact assessment
-- Query **project metadata** and dependencies
+- Remembers decisions across sessions
+- Prevents file conflicts between agents
+- Provides architecture recommendations
+- Tracks all changes
 
-### 🤖 Multi-Agent Coordination
-- **Agent registration** with capabilities and session tracking
-- **Context switching** between projects and tasks
-- **File locking** to prevent edit conflicts
-- **Activity monitoring** to see what other agents are doing
+## Example
 
-### 🏗️ Architecture Guidance
-- **Pattern library** with 9+ design patterns
-- **Rule-based recommendations** (no LLM costs)
-- **Code structure validation**
-- **Dependency analysis**
+**You say:**
+> "Create a todo app with React and FastAPI"
 
-### 📝 Comprehensive Logging
-- **Change tracking** with architecture impact
-- **Decision history** with rationale
-- **Session logs** for debugging
-- **File operation history**
+**CoordMCP automatically:**
+1. Discovers or creates the project
+2. Registers your AI agent
+3. Locks files before editing
+4. Records "Use React" and "Use FastAPI" decisions
+5. Tracks all created/modified files
+6. Unlocks files when done
 
-### ⚡ Zero LLM Costs
-All architectural recommendations and analysis use **rule-based logic** - no expensive LLM API calls required!
+**Next session:** Your AI remembers you're using React and FastAPI.
 
-## 🚀 Quick Start Guide
+## Quick Start
 
-### Prerequisites
-
-- Python 3.10 or higher
-- pip (Python package manager)
-
-### Installation
-
-#### Option 1: Install from PyPI (Recommended)
+### Install
 
 ```bash
-# Install the latest stable version
 pip install coordmcp
-
-# Verify installation
 coordmcp --version
 ```
 
-#### Option 2: Install from Source
+### Configure Your Agent
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/coordmcp.git
-cd coordmcp
-
-# Install in development mode
-pip install -e .
-
-# Or install with development dependencies
-pip install -e ".[dev]"
-```
-
-## 🔧 MCP Configuration
-
-CoordMCP is an MCP (Model Context Protocol) server that integrates with AI coding agents. Here's how to configure it for different agents:
-
-### OpenCode Configuration
-
-Create an `opencode.jsonc` file in your project root:
+For OpenCode, create `opencode.jsonc`:
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
-  
   "mcp": {
     "coordmcp": {
       "type": "local",
       "command": ["python", "-m", "coordmcp"],
-      "enabled": true,
-      "environment": {
-        "COORDMCP_LOG_LEVEL": "INFO"
-      }
+      "enabled": true
     }
-  },
+  }
 }
 ```
 
-Optional (But Recommended) : Create a system prompt configuration file in project directory and copy paste the content of `SYSTEM_PROMPT.md`
+See [integrations](docs/user-guide/integrations/) for Cursor, Claude Code, and Windsurf.
 
-## 🏃 Getting Started
+### Test It
 
-### Step 1: Start the CoordMCP Server
+Restart your AI agent and say:
 
-```bash
-# Start the server
-python -m coordmcp
+> "What CoordMCP tools are available?"
 
-# Or using the command
-coordmcp
+## Documentation
 
-# Check version
-coordmcp --version
-```
+| Audience | Start Here |
+|----------|------------|
+| **End Users** | [User Guide](docs/user-guide/what-is-coordmcp.md) |
+| **Developers** | [API Reference](docs/developer-guide/api-reference.md) |
+| **Contributors** | [Contributor Guide](docs/contributor-guide/architecture.md) |
 
-The server will start and listen for MCP connections.
+### User Guide
 
-### Step 2: Configure Your Agent
+- [What is CoordMCP?](docs/user-guide/what-is-coordmcp.md) - Overview and features
+- [Installation](docs/user-guide/installation.md) - Install and configure
+- [How It Works](docs/user-guide/how-it-works.md) - Behind the scenes
 
-Follow the MCP configuration instructions above for your specific agent (OpenCode, Claude Code, Cursor, etc.).
+### Integrations
 
-### Step 3: Start Working
+- [OpenCode](docs/user-guide/integrations/opencode.md)
+- [Cursor](docs/user-guide/integrations/cursor.md)
+- [Claude Code](docs/user-guide/integrations/claude-code.md)
+- [Windsurf](docs/user-guide/integrations/windsurf.md)
 
-Once configured, your agent will automatically use CoordMCP for:
+### Developer Guide
 
-- **Project discovery** in the current directory
-- **Agent registration** with persistent identity
-- **File locking** before modifications
-- **Decision recording** for technical choices
-- **Change logging** for audit trails
+- [API Reference](docs/developer-guide/api-reference.md) - All 34 tools
+- [Data Models](docs/developer-guide/data-models.md) - Data structures
+- [Examples](docs/developer-guide/examples/) - Usage examples
 
-### Example Workflow
+### Contributor Guide
 
-Here's what happens when you say **"Create a todo app"**:
+- [Architecture](docs/contributor-guide/architecture.md) - System design
+- [Development Setup](docs/contributor-guide/development-setup.md) - Dev environment
+- [Testing](docs/contributor-guide/testing.md) - Run and write tests
+- [Extending](docs/contributor-guide/extending.md) - Add new features
 
-```
-You: Create a todo app
+### Reference
 
-Agent automatically:
-→ Discovers/creates project in current directory
-→ Registers as agent with capabilities
-→ Starts context: "Create todo app"
-→ Checks for locked files
-→ Locks files: index.html, app.js, styles.css
-→ Gets architecture recommendation (if needed)
-→ Implements the app
-→ Records decision: "Use vanilla JS"
-→ Logs changes: Created index.html, app.js, styles.css
-→ Updates tech stack: HTML, CSS, JavaScript
-→ Unlocks files
-→ Ends context
-```
+- [Troubleshooting](docs/reference/troubleshooting.md) - Common issues
+- [Configuration](docs/reference/configuration.md) - All options
 
-All of this happens automatically - you just code naturally!
+## Features
 
-## 📚 Available Tools
+### Long-Term Memory
 
-CoordMCP provides **35+ tools** organized into categories:
+Your AI agent remembers decisions across sessions. If you chose React last week, it knows this week.
 
-### 🔍 Discovery Tools
-- `discover_project` - Find project by directory
-- `get_project` - Get project by ID/name/path
-- `list_projects` - Browse all projects
-- `get_active_agents` - See who's working
+### Multi-Agent Coordination
 
-### 🏗️ Project Management
-- `create_project` - Create new project with workspace
-- `get_project_info` - Get project details
-- `get_project_decisions` - View decision history
-- `search_decisions` - Search through decisions
+Multiple AI agents can work on the same project without conflicts through file locking.
 
-### 👤 Agent Management
-- `register_agent` - Register as agent
-- `get_agents_in_project` - View project agents
-- `get_agent_context` - View agent activity
+### Architecture Guidance
 
-### 📝 Context & Coordination
-- `start_context` - Start working on task
-- `end_context` - Finish task
-- `lock_files` - Lock files before editing
-- `unlock_files` - Unlock files when done
-- `get_locked_files` - Check file locks
+Design pattern recommendations without expensive LLM calls. 9 patterns available: MVC, Repository, Service, Factory, Observer, Adapter, Strategy, Decorator, CRUD.
 
-### 💾 Memory & Documentation
-- `save_decision` - Record technical decisions
-- `update_tech_stack` - Track technologies
-- `get_tech_stack` - View tech stack
-- `log_change` - Log code changes
-- `get_recent_changes` - View recent activity
+### Zero LLM Costs
 
-### 🏛️ Architecture
-- `get_architecture_recommendation` - Get guidance
-- `analyze_architecture` - Analyze structure
-- `validate_code_structure` - Check compliance
+All architectural analysis is rule-based - no external API calls needed.
 
-## 🔍 How It Works
-
-### Workspace-Based Project Discovery
-
-Projects are linked to directories via `workspace_path`:
-
-```python
-import os
-
-# Discover project in current directory
-discovery = await coordmcp_discover_project(path=os.getcwd())
-
-if discovery["found"]:
-    project_id = discovery["project"]["project_id"]
-else:
-    # Create new project
-    result = await coordmcp_create_project(
-        project_name="My App",
-        workspace_path=os.getcwd(),  # Links to current directory
-        description="A web application"
-    )
-    project_id = result["project_id"]
-```
-
-### Flexible Project Lookup
-
-All tools support flexible project identification:
-
-```python
-# By project ID
-await coordmcp_get_project_info(project_id="proj-abc-123")
-
-# By project name
-await coordmcp_get_project_info(project_name="My App")
-
-# By workspace path
-await coordmcp_get_project_info(workspace_path=os.getcwd())
-```
-
-**Priority:** project_id > workspace_path > project_name
-
-### Session Persistence
-
-Your agent identity persists across sessions:
-
-```python
-# First session
-gent = await coordmcp_register_agent(name="Dev1", type="opencode")
-# Returns: agent_id = "agent-xyz-789"
-
-# Next session (same name = same ID)
-agent = await coordmcp_register_agent(name="Dev1", type="opencode")
-# Returns: agent_id = "agent-xyz-789" (same!)
-```
-
-## 🛠️ Development
-
-### Project Structure
-
-```
-coordmcp/
-├── src/coordmcp/
-│   ├── core/              # Server and tool management
-│   ├── memory/            # Long-term memory system
-│   ├── context/           # Context and file locking
-│   ├── architecture/      # Architecture tools
-│   ├── tools/             # MCP tool implementations
-│   ├── resources/         # MCP resource implementations
-│   └── storage/           # Storage backends
-├── src/tests/             # Test suite
-├── docs/                  # Documentation
-└── examples/              # Example scripts
-```
-
-### Running Tests
+## Development
 
 ```bash
-# Run all tests
+git clone https://github.com/yourusername/coordmcp.git
+cd coordmcp
+pip install -e ".[dev]"
 python -m pytest src/tests/ -v
-
-# Run specific test category
-python -m pytest src/tests/unit/ -v
 ```
 
-## 🐛 Troubleshooting
+## License
 
-### "Project not found" error
+MIT License - see [LICENSE](LICENSE).
 
-```python
-# Use discover_project first
-discovery = await coordmcp_discover_project(path=os.getcwd())
-```
+## Support
 
-### "Files already locked" error
-
-```python
-# Check which agent has the lock
-locked = await coordmcp_get_locked_files(project_id=project_id)
-for lock in locked["locked_files"]:
-    print(f"Locked by {lock['agent_name']}: {lock['files']}")
-```
-
-### Server won't start
-
-```bash
-# Check if port is in use
-# CoordMCP uses stdio transport (no network ports)
-# Just run: python -m coordmcp
-
-# Check for errors
-coordmcp --version
-```
-
-### Agent not registering
-
-- Ensure `agent_type` is valid: "opencode", "cursor", "claude_code", or "custom"
-- Check that `capabilities` is a list of strings
-- Verify the server is running
-
-## 📖 Documentation
-
-- **[Getting Started Guide](docs/GETTING_STARTED.md)** - Detailed walkthrough
-- **[API Reference](docs/API_REFERENCE.md)** - Complete tool documentation
-- **[System Prompt](SYSTEM_PROMPT.md)** - Full agent configuration
-- **[Quick Reference](QUICK_REFERENCE.md)** - Condensed guide
-- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
-- **[Security Policy](SECURITY.md)** - Security information
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Built with [FastMCP](https://github.com/jlowin/fastmcp) by Jetify
-- Inspired by the need for better multi-agent coordination
-- Design patterns based on industry best practices
-
-## 📞 Support
-
-- 📧 Email: support@coordmcp.dev
-- 💬 Discord: [Join our community](https://discord.gg/coordmcp)
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/coordmcp/issues)
-
----
-
-Made with ❤️ for better multi-agent coding experiences
+- Email: support@coordmcp.dev
+- Discord: [Join our community](https://discord.gg/coordmcp)
+- Issues: [GitHub Issues](https://github.com/yourusername/coordmcp/issues)
