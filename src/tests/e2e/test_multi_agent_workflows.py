@@ -1,5 +1,5 @@
 """
-End-to-End tests for multi-agent coordination scenarios.
+End-to-End tests for multi-agent coordination scenarios. 
 
 These tests simulate realistic development workflows with multiple agents
 working concurrently on the same project.

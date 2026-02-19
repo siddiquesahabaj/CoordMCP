@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Literal, Any, Set
 from enum import Enum
 import re
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 # Schema Versions - bump when making breaking changes
@@ -134,7 +134,8 @@ class Decision(BaseEntity):
     valid_from: datetime = Field(default_factory=datetime.now, description="When this decision becomes effective")
     valid_to: Optional[datetime] = Field(default=None, description="When this decision expires")
     
-    @validator('status')
+    @field_validator('status')
+    @classmethod
     def validate_superseded(cls, v, values):
         if v == DecisionStatus.SUPERSEDED and not values.get('superseded_by'):
             raise ValueError("Superseded decisions must have superseded_by set")
@@ -155,7 +156,7 @@ class Decision(BaseEntity):
     
     def create_new_version(self, changes: Dict[str, Any], agent_id: str) -> "Decision":
         """Create a new version of this decision."""
-        new_data = self.dict()
+        new_data = self.model_dump()
         new_data.update(changes)
         new_data['id'] = f"{self.id}_v{self.version + 1}"
         new_data['previous_version_id'] = self.id
@@ -441,9 +442,9 @@ class FileMetadataIndex(BaseModel):
             set: lambda v: list(v)
         }
     
-    def dict(self, **kwargs):
-        """Override dict to properly serialize sets."""
-        d = super().dict(**kwargs)
+    def model_dump(self, **kwargs):
+        """Override model_dump to properly serialize sets."""
+        d = super().model_dump(**kwargs)
         # Convert sets to lists in dependency_graph
         if 'dependency_graph' in d:
             d['dependency_graph'] = {
@@ -548,7 +549,12 @@ class ProjectInfo(BaseEntity):
     workspace_path: str = Field(..., description="Absolute path to project workspace directory")
     schema_version: str = Field(default=SCHEMA_VERSION)
     
-    @validator('workspace_path')
+    # New fields for enhanced project management
+    project_type: str = Field(default="", description="Project type (webapp, library, api, etc.)")
+    recommended_workflows: List[str] = Field(default_factory=list, description="Recommended workflows for this project")
+    
+    @field_validator('workspace_path')
+    @classmethod
     def validate_workspace_path(cls, v):
         """Validate workspace path is absolute and normalized."""
         import os
@@ -636,3 +642,180 @@ class DataContainer(BaseModel):
 
 # Backward compatibility - add from_dict methods for Pydantic models
 # These allow loading from legacy dictionary formats
+
+
+class TaskStatus(str, Enum):
+    """Status values for tasks."""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    BLOCKED = "blocked"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class Task(BaseEntity):
+    """Represents a task in the project."""
+    title: str = Field(..., min_length=1, max_length=200, description="Task title")
+    description: str = Field(default="", description="Detailed task description")
+    status: TaskStatus = Field(default=TaskStatus.PENDING, description="Current task status")
+    project_id: str = Field(..., description="Project ID")
+    assigned_agent_id: Optional[str] = Field(default=None, description="Agent currently assigned to task")
+    requested_agent_id: Optional[str] = Field(default=None, description="Agent explicitly requested by user")
+    
+    # Task dependencies (simple linear - for branching)
+    depends_on: List[str] = Field(default_factory=list, description="Task IDs this task depends on")
+    
+    # Task tree structure (for branching)
+    parent_task_id: Optional[str] = Field(default=None, description="Parent task ID (for branching)")
+    child_tasks: List[str] = Field(default_factory=list, description="Child task IDs (branches)")
+    
+    # Task properties
+    priority: str = Field(default="medium", description="Task priority (critical, high, medium, low)")
+    related_files: List[str] = Field(default_factory=list, description="Files related to this task")
+    related_decision: Optional[str] = Field(default=None, description="Related decision ID")
+    
+    # Time tracking
+    started_at: Optional[datetime] = Field(default=None, description="When task was started")
+    completed_at: Optional[datetime] = Field(default=None, description="When task was completed")
+    estimated_hours: float = Field(default=0.0, ge=0, description="Estimated hours to complete")
+    actual_hours: float = Field(default=0.0, ge=0, description="Actual hours spent")
+    
+    def start(self, agent_id: str):
+        """Mark task as started."""
+        self.status = TaskStatus.IN_PROGRESS
+        self.assigned_agent_id = agent_id
+        self.started_at = datetime.now()
+        self.touch(agent_id)
+    
+    def complete(self, agent_id: str):
+        """Mark task as completed."""
+        self.status = TaskStatus.COMPLETED
+        self.completed_at = datetime.now()
+        if self.started_at:
+            self.actual_hours = (self.completed_at - self.started_at).total_seconds() / 3600
+        self.touch(agent_id)
+    
+    def block(self, agent_id: str, reason: str = ""):
+        """Mark task as blocked."""
+        self.status = TaskStatus.BLOCKED
+        if reason:
+            self.metadata["block_reason"] = reason
+        self.touch(agent_id)
+    
+    def is_blocked(self) -> bool:
+        """Check if task is blocked."""
+        return self.status == TaskStatus.BLOCKED
+    
+    def is_completed(self) -> bool:
+        """Check if task is completed."""
+        return self.status == TaskStatus.COMPLETED
+    
+    def model_dump(self, **kwargs):
+        """Override model_dump to handle datetime serialization."""
+        d = super().model_dump(**kwargs)
+        # Convert datetime fields to ISO format strings
+        datetime_fields = ['created_at', 'updated_at', 'started_at', 'completed_at', 'deleted_at', 'valid_from', 'valid_to']
+        for field in datetime_fields:
+            if field in d and d[field] is not None and isinstance(d[field], datetime):
+                d[field] = d[field].isoformat()
+        return d
+
+
+class MessageType(str, Enum):
+    """Types of messages agents can send to each other."""
+    REQUEST = "request"      # Request action
+    UPDATE = "update"       # Status update
+    ALERT = "alert"         # Warning/alert
+    QUESTION = "question"   # Question
+    REVIEW = "review"       # Code review request
+
+
+class AgentMessage(BaseEntity):
+    """Represents a message sent between agents."""
+    from_agent_id: str = Field(..., description="Agent ID sending the message")
+    from_agent_name: str = Field(..., description="Agent name sending the message")
+    to_agent_id: str = Field(..., description="Agent ID receiving the message (or 'broadcast' for all)")
+    project_id: str = Field(..., description="Project ID")
+    message_type: MessageType = Field(..., description="Type of message")
+    content: str = Field(..., description="Message content")
+    related_task_id: Optional[str] = Field(default=None, description="Related task ID if applicable")
+    read: bool = Field(default=False, description="Whether message has been read")
+    read_at: Optional[datetime] = Field(default=None, description="When message was read")
+    
+    def mark_read(self):
+        """Mark message as read."""
+        self.read = True
+        self.read_at = datetime.now()
+    
+    def model_dump(self, **kwargs):
+        """Override model_dump to handle datetime serialization."""
+        d = super().model_dump(**kwargs)
+        datetime_fields = ['created_at', 'updated_at', 'read_at', 'deleted_at']
+        for field in datetime_fields:
+            if field in d and d[field] is not None and isinstance(d[field], datetime):
+                d[field] = d[field].isoformat()
+        return d
+
+
+class ActivityFeedItem(BaseEntity):
+    """Represents an activity in the project's activity feed."""
+    activity_type: str = Field(..., description="Type of activity (task_created, task_completed, decision_made, file_changed, etc.)")
+    agent_id: str = Field(..., description="Agent ID who performed the activity")
+    agent_name: str = Field(..., description="Agent name for display")
+    project_id: str = Field(..., description="Project ID")
+    summary: str = Field(..., description="Brief summary of the activity")
+    related_entity_id: Optional[str] = Field(default=None, description="ID of related entity (task_id, decision_id, file_path)")
+    related_entity_type: Optional[str] = Field(default=None, description="Type of related entity")
+    
+    def model_dump(self, **kwargs):
+        """Override model_dump to handle datetime serialization."""
+        d = super().model_dump(**kwargs)
+        if 'created_at' in d and isinstance(d['created_at'], datetime):
+            d['created_at'] = d['created_at'].isoformat()
+        if 'updated_at' in d and isinstance(d['updated_at'], datetime):
+            d['updated_at'] = d['updated_at'].isoformat()
+        return d
+
+
+class SessionSummary(BaseEntity):
+    """Represents a summary of an agent's session."""
+    agent_id: str = Field(..., description="Agent ID")
+    project_id: str = Field(..., description="Project ID")
+    session_id: str = Field(..., description="Session ID")
+    duration_minutes: int = Field(default=0, description="Session duration in minutes")
+    objective: str = Field(default="", description="Main objective of the session")
+    objectives_completed: List[str] = Field(default_factory=list, description="Objectives completed")
+    files_modified: List[str] = Field(default_factory=list, description="Files modified during session")
+    key_decisions_made: List[str] = Field(default_factory=list, description="Key decisions made")
+    blockers_encountered: List[str] = Field(default_factory=list, description="Blockers encountered")
+    summary_text: str = Field(default="", description="Auto-generated summary text")
+    
+    def generate_summary_text(self, agent_name: str, project_name: str) -> str:
+        """Generate a human-readable summary text."""
+        parts = [f"Agent {agent_name} worked on {project_name} for {self.duration_minutes} minutes."]
+        
+        if self.objective:
+            parts.append(f"Objective: {self.objective}")
+        
+        if self.objectives_completed:
+            parts.append(f"Completed {len(self.objectives_completed)} objective(s)")
+        
+        if self.files_modified:
+            parts.append(f"Modified {len(self.files_modified)} file(s)")
+        
+        if self.key_decisions_made:
+            parts.append(f"Made {len(self.key_decisions_made)} decision(s)")
+        
+        if self.blockers_encountered:
+            parts.append(f"Encountered {len(self.blockers_encountered)} blocker(s)")
+        
+        return " ".join(parts)
+    
+    def model_dump(self, **kwargs):
+        """Override model_dump to handle datetime serialization."""
+        d = super().model_dump(**kwargs)
+        if 'created_at' in d and isinstance(d['created_at'], datetime):
+            d['created_at'] = d['created_at'].isoformat()
+        if 'updated_at' in d and isinstance(d['updated_at'], datetime):
+            d['updated_at'] = d['updated_at'].isoformat()
+        return d

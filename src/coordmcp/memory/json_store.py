@@ -10,7 +10,8 @@ from coordmcp.storage.base import StorageBackend
 from coordmcp.memory.models import (
     Decision, TechStackEntry, Change, FileMetadata,
     ProjectInfo, ArchitectureModule, DecisionIndex, PaginatedChanges,
-    ChangeIndex, FileMetadataIndex, Relationship, RelationshipType, SCHEMA_VERSION
+    ChangeIndex, FileMetadataIndex, Relationship, RelationshipType, SCHEMA_VERSION,
+    SessionSummary, ActivityFeedItem, Task, AgentMessage, MessageType
 )
 from coordmcp.logger import get_logger
 
@@ -97,7 +98,7 @@ class ProjectMemoryStore:
         # Save project info
         self.backend.save(
             self._get_project_key(project_id),
-            project_info.dict()
+            project_info.model_dump()
         )
         
         # Initialize empty collections with schema version
@@ -109,9 +110,9 @@ class ProjectMemoryStore:
         self.backend.save(self._get_relationships_key(project_id), {"_schema_version": SCHEMA_VERSION, "relationships": []})
         
         # Initialize indexes
-        self.backend.save(self._get_decisions_index_key(project_id), {"_schema_version": SCHEMA_VERSION, "index": DecisionIndex().dict()})
-        self.backend.save(self._get_changes_index_key(project_id), {"_schema_version": SCHEMA_VERSION, "index": ChangeIndex().dict()})
-        self.backend.save(self._get_file_index_key(project_id), {"_schema_version": SCHEMA_VERSION, "index": FileMetadataIndex().dict()})
+        self.backend.save(self._get_decisions_index_key(project_id), {"_schema_version": SCHEMA_VERSION, "index": DecisionIndex().model_dump()})
+        self.backend.save(self._get_changes_index_key(project_id), {"_schema_version": SCHEMA_VERSION, "index": ChangeIndex().model_dump()})
+        self.backend.save(self._get_file_index_key(project_id), {"_schema_version": SCHEMA_VERSION, "index": FileMetadataIndex().model_dump()})
         
         logger.info(f"Created project '{project_name}' with ID {project_id}")
         return project_id
@@ -125,7 +126,7 @@ class ProjectMemoryStore:
         data = self.backend.load(self._get_project_key(project_id))
         if data:
             try:
-                return ProjectInfo.parse_obj(data)
+                return ProjectInfo.model_validate(data)
             except Exception as e:
                 logger.warning(f"Failed to parse project info: {e}")
                 return None
@@ -145,7 +146,7 @@ class ProjectMemoryStore:
         
         self.backend.save(
             self._get_project_key(project_id),
-            project_info.dict()
+            project_info.model_dump()
         )
         return True
     
@@ -169,7 +170,7 @@ class ProjectMemoryStore:
             project_info.soft_delete(agent_id)
             self.backend.save(
                 self._get_project_key(project_id),
-                project_info.dict()
+                project_info.model_dump()
             )
             logger.info(f"Soft deleted project {project_id}")
         else:
@@ -206,7 +207,7 @@ class ProjectMemoryStore:
                 data = self.backend.load(key)
                 if data:
                     try:
-                        project = ProjectInfo.parse_obj(data)
+                        project = ProjectInfo.model_validate(data)
                         if include_deleted or not project.is_deleted:
                             projects.append(project)
                     except Exception:
@@ -240,7 +241,7 @@ class ProjectMemoryStore:
         # Save decision
         key = self._get_decisions_key(project_id)
         data = self.backend.load(key) or {"_schema_version": SCHEMA_VERSION, "decisions": {}}
-        data["decisions"][decision.id] = decision.dict()
+        data["decisions"][decision.id] = decision.model_dump()
         self.backend.save(key, data)
         
         # Update search index
@@ -266,7 +267,7 @@ class ProjectMemoryStore:
         data = self.backend.load(key)
         if data and "index" in data:
             try:
-                return DecisionIndex.parse_obj(data["index"])
+                return DecisionIndex.model_validate(data["index"])
             except Exception as e:
                 logger.warning(f"Failed to parse decisions index: {e}")
         return DecisionIndex()
@@ -274,7 +275,7 @@ class ProjectMemoryStore:
     def _save_decisions_index(self, project_id: str, index: DecisionIndex) -> None:
         """Save the decisions search index."""
         key = self._get_decisions_index_key(project_id)
-        self.backend.save(key, {"_schema_version": SCHEMA_VERSION, "index": index.dict()})
+        self.backend.save(key, {"_schema_version": SCHEMA_VERSION, "index": index.model_dump()})
     
     def get_decision(self, project_id: str, decision_id: str) -> Optional[Decision]:
         """Get a specific decision."""
@@ -283,7 +284,7 @@ class ProjectMemoryStore:
         
         if data and decision_id in data.get("decisions", {}):
             try:
-                decision = Decision.parse_obj(data["decisions"][decision_id])
+                decision = Decision.model_validate(data["decisions"][decision_id])
                 return decision if not decision.is_deleted else None
             except Exception as e:
                 logger.warning(f"Failed to parse decision: {e}")
@@ -300,7 +301,7 @@ class ProjectMemoryStore:
         decisions = []
         for decision_data in data.get("decisions", {}).values():
             try:
-                decision = Decision.parse_obj(decision_data)
+                decision = Decision.model_validate(decision_data)
                 if include_deleted or not decision.is_deleted:
                     decisions.append(decision)
             except Exception as e:
@@ -427,7 +428,7 @@ class ProjectMemoryStore:
         if "tech_stack" not in data:
             data["tech_stack"] = {}
         
-        data["tech_stack"][entry.category] = entry.dict()
+        data["tech_stack"][entry.category] = entry.model_dump()
         
         self.backend.save(key, data)
         self.update_project_info(project_id, agent_id)
@@ -463,7 +464,7 @@ class ProjectMemoryStore:
         tech_stack = self.get_tech_stack(project_id, category)
         if tech_stack:
             try:
-                return TechStackEntry.parse_obj({**tech_stack, "category": category})
+                return TechStackEntry.model_validate({**tech_stack, "category": category})
             except Exception as e:
                 logger.warning(f"Failed to parse tech stack entry: {e}")
         return None
@@ -494,7 +495,7 @@ class ProjectMemoryStore:
         if "changes" not in data:
             data["changes"] = []
         
-        data["changes"].append(change.dict())
+        data["changes"].append(change.model_dump())
         
         self.backend.save(key, data)
         
@@ -514,7 +515,7 @@ class ProjectMemoryStore:
         data = self.backend.load(key)
         if data and "index" in data:
             try:
-                return ChangeIndex.parse_obj(data["index"])
+                return ChangeIndex.model_validate(data["index"])
             except Exception as e:
                 logger.warning(f"Failed to parse changes index: {e}")
         return ChangeIndex()
@@ -522,7 +523,7 @@ class ProjectMemoryStore:
     def _save_changes_index(self, project_id: str, index: ChangeIndex) -> None:
         """Save the changes index."""
         key = self._get_changes_index_key(project_id)
-        self.backend.save(key, {"_schema_version": SCHEMA_VERSION, "index": index.dict()})
+        self.backend.save(key, {"_schema_version": SCHEMA_VERSION, "index": index.model_dump()})
     
     def get_recent_changes(self, project_id: str, limit: int = 20, 
                           impact_filter: Optional[str] = None) -> List[Change]:
@@ -546,7 +547,7 @@ class ProjectMemoryStore:
         changes = []
         for change_data in data.get("changes", []):
             try:
-                change = Change.parse_obj(change_data)
+                change = Change.model_validate(change_data)
                 
                 # Apply impact filter if specified
                 if impact_filter and impact_filter != "all":
@@ -578,7 +579,7 @@ class ProjectMemoryStore:
                 for change_data in data.get("changes", []):
                     if change_data.get("id") == change_id:
                         try:
-                            change = Change.parse_obj(change_data)
+                            change = Change.model_validate(change_data)
                             if not change.is_deleted:
                                 changes.append(change)
                         except Exception:
@@ -601,7 +602,7 @@ class ProjectMemoryStore:
             for change_id in change_ids:
                 if change_id in changes_data:
                     try:
-                        change = Change.parse_obj(changes_data[change_id])
+                        change = Change.model_validate(changes_data[change_id])
                         if not change.is_deleted:
                             changes.append(change)
                     except Exception:
@@ -623,7 +624,7 @@ class ProjectMemoryStore:
             for change_id in change_ids[:limit]:
                 if change_id in changes_data:
                     try:
-                        change = Change.parse_obj(changes_data[change_id])
+                        change = Change.model_validate(changes_data[change_id])
                         if not change.is_deleted:
                             changes.append(change)
                     except Exception:
@@ -653,7 +654,7 @@ class ProjectMemoryStore:
                 
                 # Update index
                 try:
-                    change = Change.parse_obj(change_data)
+                    change = Change.model_validate(change_data)
                     index = self._get_changes_index(project_id)
                     index.remove_change(change)
                     self._save_changes_index(project_id, index)
@@ -688,7 +689,7 @@ class ProjectMemoryStore:
         if "files" not in data:
             data["files"] = {}
         
-        data["files"][metadata.path] = metadata.dict()
+        data["files"][metadata.path] = metadata.model_dump()
         
         self.backend.save(key, data)
         
@@ -707,7 +708,7 @@ class ProjectMemoryStore:
         data = self.backend.load(key)
         if data and "index" in data:
             try:
-                return FileMetadataIndex.parse_obj(data["index"])
+                return FileMetadataIndex.model_validate(data["index"])
             except Exception as e:
                 logger.warning(f"Failed to parse file index: {e}")
         return FileMetadataIndex()
@@ -715,7 +716,7 @@ class ProjectMemoryStore:
     def _save_file_index(self, project_id: str, index: FileMetadataIndex) -> None:
         """Save the file metadata index."""
         key = self._get_file_index_key(project_id)
-        self.backend.save(key, {"_schema_version": SCHEMA_VERSION, "index": index.dict()})
+        self.backend.save(key, {"_schema_version": SCHEMA_VERSION, "index": index.model_dump()})
     
     def get_file_metadata(self, project_id: str, file_path: str) -> Optional[FileMetadata]:
         """Get metadata for a specific file."""
@@ -726,7 +727,7 @@ class ProjectMemoryStore:
             try:
                 file_data = data["files"][file_path]
                 file_data["path"] = file_path
-                metadata = FileMetadata.parse_obj(file_data)
+                metadata = FileMetadata.model_validate(file_data)
                 return metadata if not metadata.is_deleted else None
             except Exception as e:
                 logger.warning(f"Failed to parse file metadata: {e}")
@@ -744,7 +745,7 @@ class ProjectMemoryStore:
         for file_path, file_data in data.get("files", {}).items():
             try:
                 file_data["path"] = file_path
-                metadata = FileMetadata.parse_obj(file_data)
+                metadata = FileMetadata.model_validate(file_data)
                 if include_deleted or not metadata.is_deleted:
                     files.append(metadata)
             except Exception as e:
@@ -868,7 +869,7 @@ class ProjectMemoryStore:
         if "modules" not in architecture:
             architecture["modules"] = {}
         
-        architecture["modules"][module.name] = module.dict()
+        architecture["modules"][module.name] = module.model_dump()
         self.update_architecture(project_id, architecture, agent_id)
     
     def get_architecture_module(self, project_id: str, module_name: str) -> Optional[ArchitectureModule]:
@@ -878,7 +879,7 @@ class ProjectMemoryStore:
         
         if module_name in modules:
             try:
-                return ArchitectureModule.parse_obj(modules[module_name])
+                return ArchitectureModule.model_validate(modules[module_name])
             except Exception as e:
                 logger.warning(f"Failed to parse architecture module: {e}")
         return None
@@ -891,7 +892,7 @@ class ProjectMemoryStore:
         modules = []
         for name, data in modules_data.items():
             try:
-                module = ArchitectureModule.parse_obj(data)
+                module = ArchitectureModule.model_validate(data)
                 modules.append(module)
             except Exception as e:
                 logger.warning(f"Failed to parse architecture module: {e}")
@@ -919,7 +920,7 @@ class ProjectMemoryStore:
         if "relationships" not in data:
             data["relationships"] = []
         
-        data["relationships"].append(relationship.dict())
+        data["relationships"].append(relationship.model_dump())
         self.backend.save(key, data)
     
     def get_relationships(self, project_id: str, entity_type: Optional[str] = None,
@@ -934,7 +935,7 @@ class ProjectMemoryStore:
         relationships = []
         for rel_data in data.get("relationships", []):
             try:
-                relationship = Relationship.parse_obj(rel_data)
+                relationship = Relationship.model_validate(rel_data)
                 
                 # Filter if specified
                 if entity_type and entity_id:
@@ -966,3 +967,571 @@ class ProjectMemoryStore:
                 related[key].append(rel.source_id)
         
         return related
+    
+    # ==================== Activity Feed Management ====================
+    
+    def _get_activity_feed_key(self, project_id: str) -> str:
+        """Get storage key for activity feed."""
+        return f"memory/{project_id}/activity_feed"
+    
+    def _get_session_summaries_key(self, project_id: str) -> str:
+        """Get storage key for session summaries."""
+        return f"memory/{project_id}/session_summaries"
+    
+    def log_activity(self, project_id: str, activity: 'ActivityFeedItem') -> str:
+        """
+        Log an activity to the project's activity feed.
+        
+        Args:
+            project_id: Project ID
+            activity: ActivityFeedItem to log
+            
+        Returns:
+            Activity ID
+        """
+        from coordmcp.memory.models import ActivityFeedItem
+        
+        if not self.project_exists(project_id):
+            raise ValueError(f"Project {project_id} does not exist")
+        
+        key = self._get_activity_feed_key(project_id)
+        data = self.backend.load(key) or {"_schema_version": SCHEMA_VERSION, "activities": []}
+        
+        if "activities" not in data:
+            data["activities"] = []
+        
+        # Add activity to the beginning (newest first)
+        data["activities"].insert(0, activity.model_dump())
+        
+        # Keep only last 100 activities
+        if len(data["activities"]) > 100:
+            data["activities"] = data["activities"][:100]
+        
+        self.backend.save(key, data)
+        logger.debug(f"Logged activity {activity.id} for project {project_id}")
+        
+        return activity.id
+    
+    def get_recent_activities(self, project_id: str, limit: int = 50, 
+                              since: Optional[datetime] = None) -> List['ActivityFeedItem']:
+        """
+        Get recent activities from the activity feed.
+        
+        Args:
+            project_id: Project ID
+            limit: Maximum number of activities to return
+            since: Only return activities after this timestamp
+            
+        Returns:
+            List of ActivityFeedItem
+        """
+        from coordmcp.memory.models import ActivityFeedItem
+        
+        key = self._get_activity_feed_key(project_id)
+        data = self.backend.load(key)
+        
+        if not data or "activities" not in data:
+            return []
+        
+        activities = []
+        for activity_data in data["activities"]:
+            try:
+                activity = ActivityFeedItem.model_validate(activity_data)
+                
+                # Filter by timestamp if specified
+                if since and activity.created_at < since:
+                    continue
+                
+                activities.append(activity)
+                
+                if len(activities) >= limit:
+                    break
+            except Exception as e:
+                logger.warning(f"Failed to parse activity: {e}")
+        
+        return activities
+    
+    def save_session_summary(self, project_id: str, summary: 'SessionSummary') -> str:
+        """
+        Save a session summary.
+        
+        Args:
+            project_id: Project ID
+            summary: SessionSummary to save
+            
+        Returns:
+            Summary ID
+        """
+        from coordmcp.memory.models import SessionSummary
+        
+        if not self.project_exists(project_id):
+            raise ValueError(f"Project {project_id} does not exist")
+        
+        key = self._get_session_summaries_key(project_id)
+        data = self.backend.load(key) or {"_schema_version": SCHEMA_VERSION, "summaries": []}
+        
+        if "summaries" not in data:
+            data["summaries"] = []
+        
+        # Add summary
+        data["summaries"].append(summary.model_dump())
+        
+        # Keep only last 50 summaries per project
+        if len(data["summaries"]) > 50:
+            data["summaries"] = data["summaries"][-50:]
+        
+        self.backend.save(key, data)
+        logger.info(f"Saved session summary {summary.id} for project {project_id}")
+        
+        return summary.id
+    
+    def get_session_summaries(self, project_id: str, agent_id: Optional[str] = None,
+                              limit: int = 10) -> List['SessionSummary']:
+        """
+        Get session summaries for a project.
+        
+        Args:
+            project_id: Project ID
+            agent_id: Optional agent ID to filter by
+            limit: Maximum number of summaries to return
+            
+        Returns:
+            List of SessionSummary (most recent first)
+        """
+        from coordmcp.memory.models import SessionSummary
+        
+        key = self._get_session_summaries_key(project_id)
+        data = self.backend.load(key)
+        
+        if not data or "summaries" not in data:
+            return []
+        
+        summaries = []
+        # Iterate in reverse to get most recent first
+        for summary_data in reversed(data["summaries"]):
+            try:
+                summary = SessionSummary.model_validate(summary_data)
+                
+                # Filter by agent if specified
+                if agent_id and summary.agent_id != agent_id:
+                    continue
+                
+                summaries.append(summary)
+                
+                if len(summaries) >= limit:
+                    break
+            except Exception as e:
+                logger.warning(f"Failed to parse session summary: {e}")
+        
+        return summaries
+    
+    # ==================== Task Management ====================
+    
+    def _get_tasks_key(self, project_id: str) -> str:
+        """Get storage key for tasks."""
+        return f"memory/{project_id}/tasks"
+    
+    def create_task(self, task: 'Task') -> str:
+        """
+        Create a new task.
+        
+        Args:
+            task: Task to create
+            
+        Returns:
+            Task ID
+        """
+        from coordmcp.memory.models import Task
+        
+        if not self.project_exists(task.project_id):
+            raise ValueError(f"Project {task.project_id} does not exist")
+        
+        key = self._get_tasks_key(task.project_id)
+        data = self.backend.load(key) or {"_schema_version": SCHEMA_VERSION, "tasks": {}}
+        
+        if "tasks" not in data:
+            data["tasks"] = {}
+        
+        data["tasks"][task.id] = task.model_dump()
+        self.backend.save(key, data)
+        
+        logger.info(f"Created task {task.id}: {task.title}")
+        return task.id
+    
+    def get_task(self, project_id: str, task_id: str) -> Optional['Task']:
+        """
+        Get a task by ID.
+        
+        Args:
+            project_id: Project ID
+            task_id: Task ID
+            
+        Returns:
+            Task or None if not found
+        """
+        from coordmcp.memory.models import Task
+        
+        key = self._get_tasks_key(project_id)
+        data = self.backend.load(key)
+        
+        if not data or "tasks" not in data:
+            return None
+        
+        task_data = data["tasks"].get(task_id)
+        if not task_data:
+            return None
+        
+        try:
+            return Task.model_validate(task_data)
+        except Exception as e:
+            logger.warning(f"Failed to parse task {task_id}: {e}")
+            return None
+    
+    def update_task(self, project_id: str, task: 'Task', agent_id: str = "") -> bool:
+        """
+        Update an existing task.
+        
+        Args:
+            project_id: Project ID
+            task: Task with updated values
+            agent_id: Agent making the update
+            
+        Returns:
+            True if successful
+        """
+        from coordmcp.memory.models import Task
+        
+        key = self._get_tasks_key(project_id)
+        data = self.backend.load(key)
+        
+        if not data or "tasks" not in data:
+            return False
+        
+        if task.id not in data["tasks"]:
+            return False
+        
+        task.touch(agent_id)
+        data["tasks"][task.id] = task.model_dump()
+        self.backend.save(key, data)
+        
+        logger.info(f"Updated task {task.id}")
+        return True
+    
+    def delete_task(self, project_id: str, task_id: str, agent_id: str = "") -> bool:
+        """
+        Soft delete a task.
+        
+        Args:
+            project_id: Project ID
+            task_id: Task ID
+            agent_id: Agent making the deletion
+            
+        Returns:
+            True if successful
+        """
+        task = self.get_task(project_id, task_id)
+        if not task:
+            return False
+        
+        task.soft_delete(agent_id)
+        return self.update_task(project_id, task, agent_id)
+    
+    def get_project_tasks(self, project_id: str, status: Optional[str] = None,
+                          assigned_agent_id: Optional[str] = None,
+                          include_deleted: bool = False) -> List['Task']:
+        """
+        Get all tasks for a project with optional filtering.
+        
+        Args:
+            project_id: Project ID
+            status: Filter by status
+            assigned_agent_id: Filter by assigned agent
+            include_deleted: Whether to include deleted tasks
+            
+        Returns:
+            List of tasks
+        """
+        from coordmcp.memory.models import Task
+        
+        key = self._get_tasks_key(project_id)
+        data = self.backend.load(key)
+        
+        if not data or "tasks" not in data:
+            return []
+        
+        tasks = []
+        for task_data in data["tasks"].values():
+            try:
+                task = Task.model_validate(task_data)
+                
+                # Skip deleted tasks unless requested
+                if task.is_deleted and not include_deleted:
+                    continue
+                
+                # Apply filters
+                if status and task.status != status:
+                    continue
+                
+                if assigned_agent_id and task.assigned_agent_id != assigned_agent_id:
+                    continue
+                
+                tasks.append(task)
+            except Exception as e:
+                logger.warning(f"Failed to parse task: {e}")
+        
+        # Sort by created_at descending (newest first)
+        tasks.sort(key=lambda t: t.created_at, reverse=True)
+        return tasks
+    
+    def get_agent_tasks(self, agent_id: str, status: Optional[str] = None) -> List['Task']:
+        """
+        Get all tasks assigned to an agent across all projects.
+        
+        Args:
+            agent_id: Agent ID
+            status: Filter by status
+            
+        Returns:
+            List of tasks
+        """
+        # This requires scanning all projects - inefficient for now
+        # For production, add an index
+        all_tasks = []
+        
+        # Get all project IDs from memory directory
+        memory_path = self.backend.base_dir / "memory"
+        if memory_path.exists():
+            for project_dir in memory_path.iterdir():
+                if project_dir.is_dir():
+                    project_id = project_dir.name
+                    tasks = self.get_project_tasks(project_id, status=status, 
+                                                   assigned_agent_id=agent_id)
+                    all_tasks.extend(tasks)
+        
+        return all_tasks
+    
+    def get_task_dependencies(self, project_id: str, task_id: str) -> List['Task']:
+        """
+        Get tasks that this task depends on.
+        
+        Args:
+            project_id: Project ID
+            task_id: Task ID
+            
+        Returns:
+            List of dependency tasks
+        """
+        task = self.get_task(project_id, task_id)
+        if not task:
+            return []
+        
+        dependencies = []
+        for dep_id in task.depends_on:
+            dep_task = self.get_task(project_id, dep_id)
+            if dep_task:
+                dependencies.append(dep_task)
+        
+        return dependencies
+    
+    def get_task_tree(self, project_id: str, root_task_id: Optional[str] = None) -> Dict:
+        """
+        Get task tree structure.
+        
+        Args:
+            project_id: Project ID
+            root_task_id: Optional root task ID (if None, returns all root tasks)
+            
+        Returns:
+            Dictionary with task tree structure
+        """
+        tasks = self.get_project_tasks(project_id)
+        
+        # Build tree
+        task_map = {t.id: t for t in tasks}
+        
+        def build_tree(task_id: str) -> Dict:
+            task = task_map.get(task_id)
+            if not task:
+                return {}
+            
+            return {
+                "task": task.model_dump(),
+                "children": [build_tree(child_id) for child_id in task.child_tasks]
+            }
+        
+        if root_task_id:
+            return build_tree(root_task_id)
+        else:
+            # Return all root tasks (no parent)
+            root_tasks = [t for t in tasks if not t.parent_task_id]
+            return {
+                "root_tasks": [build_tree(t.id) for t in root_tasks]
+            }
+
+    # ==================== Agent Messaging ====================
+
+    def _get_messages_key(self, project_id: str) -> str:
+        """Get storage key for messages."""
+        return f"memory/{project_id}/messages"
+
+    def send_message(self, message: 'AgentMessage') -> str:
+        """
+        Send a message between agents.
+
+        Args:
+            message: AgentMessage to send
+
+        Returns:
+            Message ID
+        """
+        from coordmcp.memory.models import AgentMessage
+
+        if not self.project_exists(message.project_id):
+            raise ValueError(f"Project {message.project_id} does not exist")
+
+        key = self._get_messages_key(message.project_id)
+        data = self.backend.load(key) or {"_schema_version": SCHEMA_VERSION, "messages": []}
+
+        if "messages" not in data:
+            data["messages"] = []
+
+        # Add message
+        data["messages"].append(message.model_dump())
+
+        # Keep only last 100 messages per project
+        if len(data["messages"]) > 100:
+            data["messages"] = data["messages"][-100:]
+
+        self.backend.save(key, data)
+        logger.info(f"Message sent from {message.from_agent_id} to {message.to_agent_id}")
+
+        return message.id
+
+    def get_messages(self, project_id: str, agent_id: str,
+                     unread_only: bool = False, limit: int = 50) -> List['AgentMessage']:
+        """
+        Get messages for an agent.
+
+        Args:
+            project_id: Project ID
+            agent_id: Agent ID to get messages for
+            unread_only: Only return unread messages
+            limit: Maximum number of messages
+
+        Returns:
+            List of AgentMessage
+        """
+        from coordmcp.memory.models import AgentMessage
+
+        key = self._get_messages_key(project_id)
+        data = self.backend.load(key)
+
+        if not data or "messages" not in data:
+            return []
+
+        messages = []
+        for msg_data in data["messages"]:
+            try:
+                message = AgentMessage.model_validate(msg_data)
+
+                # Filter: message is to this agent or is a broadcast
+                if message.to_agent_id != agent_id and message.to_agent_id != "broadcast":
+                    continue
+
+                # Filter: only unread if requested
+                if unread_only and message.read:
+                    continue
+
+                messages.append(message)
+            except Exception as e:
+                logger.warning(f"Failed to parse message: {e}")
+
+        # Sort by created_at descending (newest first) and limit
+        messages.sort(key=lambda m: m.created_at, reverse=True)
+        return messages[:limit]
+
+    def get_sent_messages(self, project_id: str, agent_id: str,
+                          limit: int = 50) -> List['AgentMessage']:
+        """
+        Get messages sent by an agent.
+
+        Args:
+            project_id: Project ID
+            agent_id: Agent ID who sent messages
+            limit: Maximum number of messages
+
+        Returns:
+            List of AgentMessage
+        """
+        from coordmcp.memory.models import AgentMessage
+
+        key = self._get_messages_key(project_id)
+        data = self.backend.load(key)
+
+        if not data or "messages" not in data:
+            return []
+
+        messages = []
+        for msg_data in data["messages"]:
+            try:
+                message = AgentMessage.model_validate(msg_data)
+
+                # Filter: message is from this agent
+                if message.from_agent_id != agent_id:
+                    continue
+
+                messages.append(message)
+            except Exception as e:
+                logger.warning(f"Failed to parse message: {e}")
+
+        # Sort by created_at descending (newest first) and limit
+        messages.sort(key=lambda m: m.created_at, reverse=True)
+        return messages[:limit]
+
+    def mark_message_read(self, project_id: str, message_id: str, agent_id: str) -> bool:
+        """
+        Mark a message as read.
+
+        Args:
+            project_id: Project ID
+            message_id: Message ID
+            agent_id: Agent marking as read
+
+        Returns:
+            True if successful
+        """
+        key = self._get_messages_key(project_id)
+        data = self.backend.load(key)
+
+        if not data or "messages" not in data:
+            return False
+
+        # Find and update message
+        for i, msg_data in enumerate(data["messages"]):
+            if msg_data.get("id") == message_id:
+                # Verify agent is the recipient
+                if msg_data.get("to_agent_id") != agent_id and msg_data.get("to_agent_id") != "broadcast":
+                    return False
+
+                data["messages"][i]["read"] = True
+                data["messages"][i]["read_at"] = datetime.now().isoformat()
+                self.backend.save(key, data)
+                logger.debug(f"Message {message_id} marked as read")
+                return True
+
+        return False
+
+    def get_unread_count(self, project_id: str, agent_id: str) -> int:
+        """
+        Get count of unread messages for an agent.
+
+        Args:
+            project_id: Project ID
+            agent_id: Agent ID
+
+        Returns:
+            Number of unread messages
+        """
+        messages = self.get_messages(project_id, agent_id, unread_only=True)
+        return len(messages)
+

@@ -103,19 +103,28 @@ coordmcp/
 │   ├── architecture/          # Architecture tools
 │   │   ├── analyzer.py        # Code structure analysis
 │   │   ├── patterns.py        # Design pattern library
-│   │   └── recommender.py     # Architecture recommendations
+│   │   ├── recommender.py     # Architecture recommendations
+│   │   └── validators.py     # Architecture validators
 │   ├── tools/                 # MCP tool implementations
 │   │   ├── memory_tools.py    # Project, decision, tech stack tools
 │   │   ├── context_tools.py   # Agent, context, file locking tools
 │   │   ├── discovery_tools.py # Project/agent discovery
-│   │   └── architecture_tools.py # Architecture analysis tools
+│   │   ├── architecture_tools.py # Architecture analysis tools
+│   │   ├── task_tools.py     # Task management tools
+│   │   ├── message_tools.py  # Agent messaging tools
+│   │   ├── health_tools.py   # Health dashboard tools
+│   │   └── onboarding_tools.py # Project onboarding
 │   ├── resources/             # MCP resource implementations
 │   ├── storage/               # Storage backends
 │   │   └── json_adapter.py    # JSON file storage
 │   ├── utils/                 # Utility functions
 │   │   ├── validation.py      # Input validation
 │   │   └── project_resolver.py # Project lookup utilities
-│   └── __init__.py            # Package initialization
+│   ├── errors/                # Custom exception types
+│   ├── events.py              # Event hook system
+│   ├── plugins.py             # Plugin system
+│   ├── config.py              # Configuration management
+│   └── logger.py              # Logging system
 ├── src/tests/                 # Test suite
 │   ├── unit/                  # Unit tests
 │   ├── integration/           # Integration tests

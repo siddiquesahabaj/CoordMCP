@@ -16,6 +16,10 @@ from coordmcp.tools import memory_tools
 from coordmcp.tools import context_tools
 from coordmcp.tools import architecture_tools
 from coordmcp.tools import discovery_tools
+from coordmcp.tools.onboarding_tools import get_project_onboarding_context
+from coordmcp.tools import task_tools
+from coordmcp.tools import message_tools
+from coordmcp.tools import health_tools
 from coordmcp.logger import get_logger
 
 logger = get_logger("tools")
@@ -48,7 +52,10 @@ def register_all_tools(server: FastMCP) -> FastMCP:
     _register_context_tools(server)
     _register_architecture_tools(server)
     _register_discovery_tools(server)
-    
+    _register_task_tools(server)
+    _register_message_tools(server)
+    _register_health_tools(server)
+
     logger.info("All tools registered successfully")
     return server
 
@@ -998,7 +1005,8 @@ def _register_context_tools(server: FastMCP) -> None:
         objective: str = "",
         task_description: str = "",
         priority: str = "medium",
-        current_file: str = ""
+        current_file: str = "",
+        task_id: str = None
     ):
         """
         MANDATORY STEP 3: Start a new work context before beginning any coding task.
@@ -1044,6 +1052,7 @@ def _register_context_tools(server: FastMCP) -> None:
             task_description: Detailed description of the work (optional) - Include specific requirements, acceptance criteria
             priority: Priority level - "critical", "high", "medium", or "low" (default: "medium")
             current_file: File you're starting with (optional) - e.g., "src/auth/login.ts"
+            task_id: Task ID to link this context to (optional) - If provided, task will be auto-started
 
         Returns:
             Dictionary with context information and session details
@@ -1057,6 +1066,9 @@ def _register_context_tools(server: FastMCP) -> None:
             
             # By workspace path
             result = await start_context("agent-123", workspace_path="/path/to/project", objective="Fix bug")
+            
+            # With task linkage
+            result = await start_context("agent-123", project_id="proj-456", objective="Fix bug", task_id="task-789")
         """
         return await context_tools.start_context(
             agent_id=agent_id,
@@ -1066,8 +1078,42 @@ def _register_context_tools(server: FastMCP) -> None:
             objective=objective,
             task_description=task_description,
             priority=priority,
-            current_file=current_file
+            current_file=current_file,
+            task_id=task_id
         )
+    
+    @server.tool()
+    async def get_project_onboarding_context_tool(
+        agent_id: str,
+        project_id: str
+    ):
+        """
+        Get comprehensive onboarding context when entering a project.
+        
+        Returns a complete 'situation report' including project info, recent activity,
+        active agents, key decisions, and personalized context for the agent.
+        
+        WHEN TO USE:
+        - When entering a project to understand the current state
+        - Before starting work to see what others are doing
+        - When returning to a project after some time
+        - To get a full overview of project context
+        
+        Args:
+            agent_id: Your agent_id from register_agent()
+            project_id: Project ID to get context for
+            
+        Returns:
+            Dictionary with complete onboarding context including:
+            - project_info: Project details, tech stack, architecture
+            - agent_context: Your personal history with the project
+            - active_agents: What other agents are working on
+            - recent_changes: Recent code changes
+            - key_decisions: Active architectural decisions
+            - locked_files: Currently locked files
+            - recommended_next_steps: Suggested actions
+        """
+        return await get_project_onboarding_context(agent_id, project_id)
     
     @server.tool()
     async def get_agent_context(agent_id: str):
@@ -1904,3 +1950,429 @@ def _register_discovery_tools(server: FastMCP) -> None:
         return await discovery_tools.get_active_agents(project_id, project_name, workspace_path)
     
     logger.debug("Discovery tools registered")
+
+
+def _register_task_tools(server: FastMCP) -> None:
+    """
+    Register task management tools.
+    
+    These tools handle:
+    - Task creation and management
+    - Task assignment to agents
+    - Task status tracking
+    - Task dependencies and branching
+    """
+    logger.debug("Registering task tools...")
+    
+    @server.tool()
+    async def create_task(
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
+        title: str = "",
+        description: str = "",
+        requested_agent_id: str = None,
+        priority: str = "medium",
+        related_files: list = None,
+        depends_on: list = None,
+        parent_task_id: str = None,
+        estimated_hours: float = 0
+    ):
+        """
+        Create a new task in a project.
+        
+        Use this to track work that needs to be done. Tasks can be assigned to agents,
+        have dependencies, and be organized in a tree structure.
+        
+        Args:
+            project_id: Project ID
+            project_name: Project name (alternative to project_id)
+            workspace_path: Workspace path (alternative to project_id)
+            title: Task title (required)
+            description: Task description
+            requested_agent_id: Agent explicitly requested for this task
+            priority: Task priority - critical, high, medium, or low
+            related_files: List of file paths related to this task
+            depends_on: List of task IDs this task depends on
+            parent_task_id: Parent task ID for creating task branches
+            estimated_hours: Estimated hours to complete
+            
+        Returns:
+            Dictionary with task_id and success status
+        """
+        return await task_tools.create_task(
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            title=title,
+            description=description,
+            requested_agent_id=requested_agent_id,
+            priority=priority,
+            related_files=related_files,
+            depends_on=depends_on,
+            parent_task_id=parent_task_id,
+            estimated_hours=estimated_hours
+        )
+    
+    @server.tool()
+    async def get_task(project_id: str, task_id: str):
+        """
+        Get task details.
+        
+        Args:
+            project_id: Project ID
+            task_id: Task ID
+            
+        Returns:
+            Dictionary with task details
+        """
+        return await task_tools.get_task(project_id, task_id)
+    
+    @server.tool()
+    async def assign_task(project_id: str, task_id: str, agent_id: str, requested_by_user: bool = False):
+        """
+        Assign a task to an agent.
+        
+        Args:
+            project_id: Project ID
+            task_id: Task ID
+            agent_id: Agent ID to assign
+            requested_by_user: Whether this was explicitly requested by user
+            
+        Returns:
+            Dictionary with success status
+        """
+        return await task_tools.assign_task(project_id, task_id, agent_id, requested_by_user)
+    
+    @server.tool()
+    async def update_task_status(
+        project_id: str,
+        task_id: str,
+        agent_id: str,
+        status: str,
+        notes: str = ""
+    ):
+        """
+        Update task status.
+        
+        Args:
+            project_id: Project ID
+            task_id: Task ID
+            agent_id: Agent making the update
+            status: New status - pending, in_progress, blocked, completed, or cancelled
+            notes: Notes about the status change
+            
+        Returns:
+            Dictionary with success status
+        """
+        return await task_tools.update_task_status(project_id, task_id, agent_id, status, notes)
+    
+    @server.tool()
+    async def get_project_tasks(
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
+        status: str = None,
+        assigned_agent_id: str = None
+    ):
+        """
+        Get all tasks for a project.
+        
+        Args:
+            project_id: Project ID
+            project_name: Project name
+            workspace_path: Workspace path
+            status: Filter by status
+            assigned_agent_id: Filter by assigned agent
+            
+        Returns:
+            Dictionary with list of tasks
+        """
+        return await task_tools.get_project_tasks(
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            status=status,
+            assigned_agent_id=assigned_agent_id
+        )
+    
+    @server.tool()
+    async def get_my_tasks(agent_id: str, status: str = None):
+        """
+        Get all tasks assigned to an agent.
+        
+        Args:
+            agent_id: Agent ID
+            status: Filter by status
+            
+        Returns:
+            Dictionary with list of tasks
+        """
+        return await task_tools.get_my_tasks(agent_id, status)
+    
+    @server.tool()
+    async def complete_task(
+        project_id: str,
+        task_id: str,
+        agent_id: str,
+        completion_notes: str = ""
+    ):
+        """
+        Mark a task as completed.
+        
+        Args:
+            project_id: Project ID
+            task_id: Task ID
+            agent_id: Agent completing the task
+            completion_notes: Notes about completion
+            
+        Returns:
+            Dictionary with success status
+        """
+        return await task_tools.complete_task(project_id, task_id, agent_id, completion_notes)
+    
+    @server.tool()
+    async def delete_task(
+        project_id: str,
+        task_id: str,
+        agent_id: str,
+        reason: str = ""
+    ):
+        """
+        Delete (soft delete) a task.
+        
+        Args:
+            project_id: Project ID
+            task_id: Task ID
+            agent_id: Agent deleting the task
+            reason: Reason for deletion
+            
+        Returns:
+            Dictionary with success status
+        """
+        return await task_tools.delete_task(project_id, task_id, agent_id, reason)
+    
+    logger.debug("Task tools registered")
+
+
+def _register_message_tools(server: FastMCP) -> None:
+    """
+    Register agent messaging tools.
+    
+    These tools enable communication between agents:
+    - Send messages to specific agents
+    - Broadcast messages to all agents
+    - Read and manage messages
+    """
+    logger.debug("Registering message tools...")
+    
+    @server.tool()
+    async def send_message(
+        from_agent_id: str,
+        to_agent_id: str,
+        project_id: str,
+        content: str,
+        message_type: str = "update",
+        related_task_id: str = None
+    ):
+        """
+        Send a message to another agent (or broadcast to all).
+        
+        Use this to communicate with other agents working on the same project.
+        Messages can be targeted to specific agents or broadcast to everyone.
+        
+        Args:
+            from_agent_id: Your agent_id
+            to_agent_id: Recipient agent_id (use 'broadcast' for all agents)
+            project_id: Project ID
+            content: Message content
+            message_type: Type - request, update, alert, question, review
+            related_task_id: Optional related task ID
+            
+        Returns:
+            Dictionary with message_id and success status
+        """
+        return await message_tools.send_message(
+            from_agent_id=from_agent_id,
+            to_agent_id=to_agent_id,
+            project_id=project_id,
+            content=content,
+            message_type=message_type,
+            related_task_id=related_task_id
+        )
+    
+    @server.tool()
+    async def get_messages(
+        agent_id: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
+        unread_only: bool = False,
+        limit: int = 50
+    ):
+        """
+        Get messages for an agent.
+        
+        Retrieve messages sent to you by other agents.
+        
+        Args:
+            agent_id: Your agent_id
+            project_id: Project ID (or use project_name/workspace_path)
+            project_name: Project name to look up
+            workspace_path: Workspace path to look up
+            unread_only: Only get unread messages
+            limit: Maximum messages to return
+            
+        Returns:
+            Dictionary with list of messages
+        """
+        return await message_tools.get_messages(
+            agent_id=agent_id,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            unread_only=unread_only,
+            limit=limit
+        )
+    
+    @server.tool()
+    async def get_sent_messages(
+        agent_id: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None,
+        limit: int = 50
+    ):
+        """
+        Get messages sent by an agent.
+        
+        View messages you've sent to others.
+        
+        Args:
+            agent_id: Your agent_id
+            project_id: Project ID
+            project_name: Project name to look up
+            workspace_path: Workspace path to look up
+            limit: Maximum messages to return
+            
+        Returns:
+            Dictionary with list of sent messages
+        """
+        return await message_tools.get_sent_messages(
+            agent_id=agent_id,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path,
+            limit=limit
+        )
+    
+    @server.tool()
+    async def mark_message_read(
+        agent_id: str,
+        message_id: str,
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None
+    ):
+        """
+        Mark a message as read.
+        
+        Args:
+            agent_id: Your agent_id
+            message_id: Message ID to mark as read
+            project_id: Project ID
+            project_name: Project name to look up
+            workspace_path: Workspace path to look up
+            
+        Returns:
+            Dictionary with success status
+        """
+        return await message_tools.mark_message_read(
+            agent_id=agent_id,
+            message_id=message_id,
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path
+        )
+    
+    @server.tool()
+    async def broadcast_message(
+        from_agent_id: str,
+        project_id: str,
+        content: str,
+        message_type: str = "update"
+    ):
+        """
+        Broadcast a message to all agents in a project.
+        
+        Send a message to all agents working on the project.
+        
+        Args:
+            from_agent_id: Your agent_id
+            project_id: Project ID
+            content: Message content
+            message_type: Type - request, update, alert, question, review
+            
+        Returns:
+            Dictionary with message_id and success status
+        """
+        return await message_tools.broadcast_message(
+            from_agent_id=from_agent_id,
+            project_id=project_id,
+            content=content,
+            message_type=message_type
+        )
+
+    logger.debug("Message tools registered")
+
+
+def _register_health_tools(server: FastMCP) -> None:
+    """
+    Register project health dashboard tools.
+
+    These tools provide:
+    - Project health monitoring
+    - Dashboard with metrics and recommendations
+    - Overview of project status
+    """
+    logger.debug("Registering health tools...")
+
+    @server.tool()
+    async def get_project_dashboard(
+        project_id: str = None,
+        project_name: str = None,
+        workspace_path: str = None
+    ):
+        """
+        Get comprehensive project health dashboard.
+
+        Provides a complete overview of project status including health score,
+        task statistics, agent activity, file locks, and actionable recommendations.
+
+        WHEN TO USE:
+        - To check overall project health
+        - To see what needs attention
+        - To monitor team progress
+        - To identify bottlenecks
+
+        Args:
+            project_id: Project ID
+            project_name: Project name to look up
+            workspace_path: Workspace path to look up
+
+        Returns:
+            Dictionary with complete dashboard including:
+            - health_score: 0-100 score
+            - health_status: Healthy, Fair, Warning, or Critical
+            - tasks_summary: Task counts and completion rate
+            - agents_summary: Active agents and their work
+            - locks_summary: File lock status
+            - recommendations: Actionable suggestions
+        """
+        return await health_tools.get_project_dashboard(
+            project_id=project_id,
+            project_name=project_name,
+            workspace_path=workspace_path
+        )
+
+    logger.debug("Health tools registered")

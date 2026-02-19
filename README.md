@@ -112,7 +112,7 @@ Restart your AI agent and say:
 
 ### Developer Guide
 
-- [API Reference](docs/developer-guide/api-reference.md) - All 34 tools
+- [API Reference](docs/developer-guide/api-reference.md) - All 49 tools
 - [Data Models](docs/developer-guide/data-models.md) - Data structures
 - [Examples](docs/developer-guide/examples/) - Usage examples
 
@@ -141,6 +141,18 @@ Multiple AI agents can work on the same project without conflicts through file l
 ### Architecture Guidance
 
 Design pattern recommendations without expensive LLM calls. 9 patterns available: MVC, Repository, Service, Factory, Observer, Adapter, Strategy, Decorator, CRUD.
+
+### Task Management
+
+Create, assign, and track tasks across agents. Support for task dependencies, priorities, and completion tracking.
+
+### Agent Messaging
+
+Enable communication between agents with direct messages and broadcast capabilities.
+
+### Health Dashboard
+
+Monitor project health with comprehensive dashboards showing task progress, agent activity, and actionable recommendations.
 
 ### Zero LLM Costs
 

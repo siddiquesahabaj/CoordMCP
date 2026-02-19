@@ -402,7 +402,7 @@ async def get_active_agents(
                 continue
             
             # Get agent context for current activity
-            agent_context = context_manager.get_agent_context(agent.agent_id)
+            agent_context = context_manager.get_context(agent.agent_id)
             
             # If filtering by project, check if agent is working on it
             if target_project_id:

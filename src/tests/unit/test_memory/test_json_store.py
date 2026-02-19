@@ -23,6 +23,10 @@ from tests.utils.factories import (
     TechStackEntryFactory,
     ChangeFactory,
     FileMetadataFactory,
+    TaskFactory,
+    AgentMessageFactory,
+    SessionSummaryFactory,
+    ActivityFeedItemFactory,
 )
 from tests.utils.assertions import assert_project_exists, assert_valid_uuid
 
@@ -472,6 +476,347 @@ class TestProjectDeletion:
         # Should no longer exist
         assert memory_store.get_project_info(project_id) is None
         assert not memory_store.project_exists(project_id)
+
+
+@pytest.mark.unit
+@pytest.mark.memory
+class TestTaskManagement:
+    """Test task management operations."""
+    
+    def test_create_task(self, memory_store, sample_project_id):
+        """Test creating a task."""
+        task = TaskFactory.create(project_id=sample_project_id, title="Test Task")
+        
+        task_id = memory_store.create_task(task)
+        
+        assert task_id is not None
+        assert_valid_uuid(task_id)
+    
+    def test_get_task(self, memory_store, sample_project_id):
+        """Test getting a task by ID."""
+        task = TaskFactory.create(project_id=sample_project_id, title="Get Me")
+        task_id = memory_store.create_task(task)
+        
+        retrieved = memory_store.get_task(sample_project_id, task_id)
+        
+        assert retrieved is not None
+        assert retrieved.title == "Get Me"
+    
+    def test_get_task_not_found(self, memory_store, sample_project_id):
+        """Test getting a non-existent task."""
+        result = memory_store.get_task(sample_project_id, "nonexistent")
+        
+        assert result is None
+    
+    def test_update_task(self, memory_store, sample_project_id):
+        """Test updating a task."""
+        task = TaskFactory.create(project_id=sample_project_id, title="Original")
+        task_id = memory_store.create_task(task)
+        
+        task.title = "Updated"
+        memory_store.update_task(sample_project_id, task, "test-agent")
+        
+        retrieved = memory_store.get_task(sample_project_id, task_id)
+        assert retrieved.title == "Updated"
+    
+    def test_delete_task(self, memory_store, sample_project_id):
+        """Test soft deleting a task."""
+        task = TaskFactory.create(project_id=sample_project_id)
+        task_id = memory_store.create_task(task)
+        
+        memory_store.delete_task(sample_project_id, task_id, "test-agent")
+        
+        # Should not appear in normal queries
+        tasks = memory_store.get_project_tasks(sample_project_id)
+        assert not any(t.id == task_id for t in tasks)
+    
+    def test_get_project_tasks(self, memory_store, sample_project_id):
+        """Test getting all tasks for a project."""
+        for i in range(3):
+            task = TaskFactory.create(project_id=sample_project_id, title=f"Task {i}")
+            memory_store.create_task(task)
+        
+        tasks = memory_store.get_project_tasks(sample_project_id)
+        
+        assert len(tasks) == 3
+    
+    def test_get_project_tasks_filter_by_status(self, memory_store, sample_project_id):
+        """Test filtering tasks by status."""
+        from coordmcp.memory.models import TaskStatus
+        
+        task1 = TaskFactory.create(project_id=sample_project_id, status=TaskStatus.PENDING)
+        task2 = TaskFactory.create(project_id=sample_project_id, status=TaskStatus.COMPLETED)
+        memory_store.create_task(task1)
+        memory_store.create_task(task2)
+        
+        pending = memory_store.get_project_tasks(sample_project_id, status="pending")
+        completed = memory_store.get_project_tasks(sample_project_id, status="completed")
+        
+        assert len(pending) == 1
+        assert len(completed) == 1
+    
+    def test_get_project_tasks_filter_by_agent(self, memory_store, sample_project_id):
+        """Test filtering tasks by assigned agent."""
+        task1 = TaskFactory.create(project_id=sample_project_id, assigned_agent_id="agent-1")
+        task2 = TaskFactory.create(project_id=sample_project_id, assigned_agent_id="agent-2")
+        memory_store.create_task(task1)
+        memory_store.create_task(task2)
+        
+        agent1_tasks = memory_store.get_project_tasks(sample_project_id, assigned_agent_id="agent-1")
+        
+        assert len(agent1_tasks) == 1
+        assert agent1_tasks[0].assigned_agent_id == "agent-1"
+    
+    def test_get_task_dependencies(self, memory_store, sample_project_id):
+        """Test getting task dependencies."""
+        parent = TaskFactory.create(project_id=sample_project_id, title="Parent")
+        parent_id = memory_store.create_task(parent)
+        
+        child = TaskFactory.create(
+            project_id=sample_project_id,
+            title="Child",
+            depends_on=[parent_id]
+        )
+        memory_store.create_task(child)
+        
+        deps = memory_store.get_task_dependencies(sample_project_id, child.id)
+        
+        assert len(deps) == 1
+        assert deps[0].id == parent_id
+    
+    def test_get_task_tree(self, memory_store, sample_project_id):
+        """Test getting task tree structure."""
+        parent = TaskFactory.create(project_id=sample_project_id, title="Parent")
+        parent_id = memory_store.create_task(parent)
+        
+        child = TaskFactory.create(
+            project_id=sample_project_id,
+            title="Child",
+            parent_task_id=parent_id
+        )
+        child_id = memory_store.create_task(child)
+        
+        # Update parent with child reference
+        parent.child_tasks.append(child_id)
+        memory_store.update_task(sample_project_id, parent)
+        
+        tree = memory_store.get_task_tree(sample_project_id, parent_id)
+        
+        assert "task" in tree
+        assert len(tree["children"]) == 1
+
+
+@pytest.mark.unit
+@pytest.mark.memory
+class TestMessaging:
+    """Test agent messaging operations."""
+    
+    def test_send_message(self, memory_store, sample_project_id):
+        """Test sending a message."""
+        msg = AgentMessageFactory.create(
+            project_id=sample_project_id,
+            content="Hello there!"
+        )
+        
+        msg_id = memory_store.send_message(msg)
+        
+        assert msg_id is not None
+        assert_valid_uuid(msg_id)
+    
+    def test_get_messages(self, memory_store, sample_project_id):
+        """Test getting messages for an agent."""
+        agent_id = str(AgentMessageFactory.create().to_agent_id)
+        
+        for i in range(3):
+            msg = AgentMessageFactory.create(
+                project_id=sample_project_id,
+                to_agent_id=agent_id
+            )
+            memory_store.send_message(msg)
+        
+        messages = memory_store.get_messages(sample_project_id, agent_id)
+        
+        assert len(messages) == 3
+    
+    def test_get_messages_broadcast(self, memory_store, sample_project_id):
+        """Test getting broadcast messages."""
+        for i in range(2):
+            msg = AgentMessageFactory.create(
+                project_id=sample_project_id,
+                to_agent_id="broadcast"
+            )
+            memory_store.send_message(msg)
+        
+        messages = memory_store.get_messages(sample_project_id, "any-agent")
+        
+        # Broadcast messages should be included
+        broadcast_msgs = [m for m in messages if m.to_agent_id == "broadcast"]
+        assert len(broadcast_msgs) == 2
+    
+    def test_get_messages_unread_only(self, memory_store, sample_project_id):
+        """Test getting only unread messages."""
+        agent_id = str(AgentMessageFactory.create().to_agent_id)
+        
+        msg1 = AgentMessageFactory.create(project_id=sample_project_id, to_agent_id=agent_id, read=False)
+        msg2 = AgentMessageFactory.create(project_id=sample_project_id, to_agent_id=agent_id, read=True)
+        memory_store.send_message(msg1)
+        memory_store.send_message(msg2)
+        
+        unread = memory_store.get_messages(sample_project_id, agent_id, unread_only=True)
+        
+        assert len(unread) == 1
+        assert unread[0].read is False
+    
+    def test_get_sent_messages(self, memory_store, sample_project_id):
+        """Test getting messages sent by an agent."""
+        agent_id = str(AgentMessageFactory.create().from_agent_id)
+        
+        for i in range(2):
+            msg = AgentMessageFactory.create(
+                project_id=sample_project_id,
+                from_agent_id=agent_id
+            )
+            memory_store.send_message(msg)
+        
+        sent = memory_store.get_sent_messages(sample_project_id, agent_id)
+        
+        assert len(sent) == 2
+    
+    def test_mark_message_read(self, memory_store, sample_project_id):
+        """Test marking a message as read."""
+        agent_id = str(AgentMessageFactory.create().to_agent_id)
+        msg = AgentMessageFactory.create(
+            project_id=sample_project_id,
+            to_agent_id=agent_id,
+            read=False
+        )
+        msg_id = memory_store.send_message(msg)
+        
+        result = memory_store.mark_message_read(sample_project_id, msg_id, agent_id)
+        
+        assert result is True
+        messages = memory_store.get_messages(sample_project_id, agent_id)
+        assert messages[0].read is True
+    
+    def test_mark_message_read_not_recipient(self, memory_store, sample_project_id):
+        """Test that non-recipient cannot mark message as read."""
+        agent_id = str(AgentMessageFactory.create().to_agent_id)
+        msg = AgentMessageFactory.create(
+            project_id=sample_project_id,
+            to_agent_id=agent_id
+        )
+        msg_id = memory_store.send_message(msg)
+        
+        result = memory_store.mark_message_read(sample_project_id, msg_id, "other-agent")
+        
+        assert result is False
+    
+    def test_get_unread_count(self, memory_store, sample_project_id):
+        """Test getting unread message count."""
+        agent_id = str(AgentMessageFactory.create().to_agent_id)
+        
+        for i in range(3):
+            msg = AgentMessageFactory.create(
+                project_id=sample_project_id,
+                to_agent_id=agent_id,
+                read=False
+            )
+            memory_store.send_message(msg)
+        
+        count = memory_store.get_unread_count(sample_project_id, agent_id)
+        
+        assert count == 3
+
+
+@pytest.mark.unit
+@pytest.mark.memory
+class TestActivityFeed:
+    """Test activity feed operations."""
+    
+    def test_log_activity(self, memory_store, sample_project_id):
+        """Test logging an activity."""
+        activity = ActivityFeedItemFactory.create(
+            project_id=sample_project_id,
+            activity_type="task_created",
+            summary="Created task XYZ"
+        )
+        
+        activity_id = memory_store.log_activity(sample_project_id, activity)
+        
+        assert activity_id is not None
+    
+    def test_get_recent_activities(self, memory_store, sample_project_id):
+        """Test getting recent activities."""
+        for i in range(5):
+            activity = ActivityFeedItemFactory.create(project_id=sample_project_id)
+            memory_store.log_activity(sample_project_id, activity)
+        
+        activities = memory_store.get_recent_activities(sample_project_id, limit=3)
+        
+        assert len(activities) == 3
+    
+    def test_get_recent_activities_with_since(self, memory_store, sample_project_id):
+        """Test filtering activities by time."""
+        from datetime import datetime, timedelta
+        
+        # Old activity
+        old = ActivityFeedItemFactory.create(project_id=sample_project_id)
+        memory_store.log_activity(sample_project_id, old)
+        
+        # New activity
+        new = ActivityFeedItemFactory.create(project_id=sample_project_id)
+        memory_store.log_activity(sample_project_id, new)
+        
+        # Get only recent
+        recent = datetime.now() - timedelta(minutes=1)
+        activities = memory_store.get_recent_activities(sample_project_id, since=recent)
+        
+        # Should only get the new one
+        assert len(activities) >= 1
+
+
+@pytest.mark.unit
+@pytest.mark.memory
+class TestSessionSummaries:
+    """Test session summary operations."""
+    
+    def test_save_session_summary(self, memory_store, sample_project_id):
+        """Test saving a session summary."""
+        summary = SessionSummaryFactory.create(project_id=sample_project_id)
+        
+        summary_id = memory_store.save_session_summary(sample_project_id, summary)
+        
+        assert summary_id is not None
+    
+    def test_get_session_summaries(self, memory_store, sample_project_id):
+        """Test getting session summaries."""
+        for i in range(3):
+            summary = SessionSummaryFactory.create(project_id=sample_project_id)
+            memory_store.save_session_summary(sample_project_id, summary)
+        
+        summaries = memory_store.get_session_summaries(sample_project_id)
+        
+        assert len(summaries) == 3
+    
+    def test_get_session_summaries_filter_by_agent(self, memory_store, sample_project_id):
+        """Test filtering summaries by agent."""
+        agent_id = str(SessionSummaryFactory.create().agent_id)
+        
+        for i in range(2):
+            summary = SessionSummaryFactory.create(
+                project_id=sample_project_id,
+                agent_id=agent_id
+            )
+            memory_store.save_session_summary(sample_project_id, summary)
+        
+        # Other agent
+        other = SessionSummaryFactory.create(project_id=sample_project_id)
+        memory_store.save_session_summary(sample_project_id, other)
+        
+        summaries = memory_store.get_session_summaries(sample_project_id, agent_id=agent_id)
+        
+        assert len(summaries) == 2
+        assert all(s.agent_id == agent_id for s in summaries)
 
 
 if __name__ == "__main__":

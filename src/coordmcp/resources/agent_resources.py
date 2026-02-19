@@ -118,7 +118,7 @@ def _format_agent_profile(agent) -> str:
 
 def _format_agent_context(manager, agent_id: str) -> str:
     """Format agent context as markdown."""
-    context = manager.get_agent_context_full(agent_id)
+    context = manager.get_context(agent_id)
     
     if not context:
         return f"# Agent Context\n\n*No active context for this agent.*"
@@ -139,7 +139,7 @@ def _format_agent_context(manager, agent_id: str) -> str:
             f"**Started:** {current.started_at}",
         ])
         
-        if current.task_description:
+        if hasattr(current, 'task_description') and current.task_description:
             lines.extend([
                 "",
                 "### Task Description",
@@ -193,7 +193,7 @@ def _format_locked_files(manager, agent_id: str) -> str:
     all_locked = []
     # We need to check the file_tracker for this agent's locks
     # For now, get from agent context
-    context = manager.get_agent_context_full(agent_id)
+    context = manager.get_context(agent_id)
     
     lines = [
         f"# Locked Files for {agent.agent_name if agent else agent_id}",

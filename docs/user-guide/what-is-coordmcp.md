@@ -90,6 +90,82 @@ Reason: Implementing JWT authentication
 Related to: Decision "Use JWT for auth"
 ```
 
+### Task Management
+
+Create, assign, and track tasks across multiple agents.
+
+**Example scenario:**
+```
+Task: "Implement login API"
+Assigned to: Agent A
+Priority: High
+Status: In Progress
+```
+
+### Agent Messaging
+
+Agents can communicate with each other directly.
+
+**Example scenario:**
+```
+Agent A: "I'm done with auth module"
+Sends: Message to Agent B about completion
+Agent B: "Thanks! Starting API integration now"
+```
+
+### Health Dashboard
+
+Monitor project health with comprehensive dashboards.
+
+**Example scenario:**
+```
+Health Score: 85/100 (Healthy)
+Active Tasks: 5
+Completed Today: 3
+Blocked Tasks: 1
+Recommendation: Review blocked task
+```
+Session 1: "Use PostgreSQL for the database"
+Session 2 (new session): AI knows you chose PostgreSQL
+Session 3: AI suggests PostgreSQL-compatible patterns
+```
+
+### Multi-Agent Coordination
+
+Multiple AI agents can work on the same project without conflicts.
+
+**Example scenario:**
+```
+Agent A: Working on src/auth.py (file locked)
+Agent B: Tries to edit src/auth.py → Gets warning
+Agent B: Works on src/api.py instead
+Result: No conflicts, clean coordination
+```
+
+### Architecture Guidance
+
+CoordMCP provides design pattern recommendations without expensive LLM calls.
+
+**Example scenario:**
+```
+You: "Add user authentication"
+CoordMCP: Recommends Repository pattern
+         Suggests file structure
+         Provides implementation steps
+```
+
+### Change Tracking
+
+Every code change is logged with context and impact assessment.
+
+**Example scenario:**
+```
+Change: src/auth.py created
+Impact: Significant (new authentication layer)
+Reason: Implementing JWT authentication
+Related to: Decision "Use JWT for auth"
+```
+
 ## What You Need To Do
 
 1. **Install CoordMCP** - One-time setup

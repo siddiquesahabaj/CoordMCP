@@ -81,11 +81,9 @@ def load_config() -> Config:
     """Load configuration from environment variables."""
     config = Config()
     
-    # Override with environment variables if set
-    if data_dir := os.getenv("COORDMCP_DATA_DIR"):
-        # Expand any variables in the path
-        expanded_path = expand_path_variables(data_dir)
-        config.data_dir = Path(expanded_path)
+    # Always use global storage in ~/.coordmcp/data
+    # Local/workspace storage removed to ensure all agents share the same data
+    config.data_dir = Path.home() / ".coordmcp" / "data"
     
     if log_level := os.getenv("COORDMCP_LOG_LEVEL"):
         config.log_level = log_level

@@ -28,13 +28,14 @@ CoordMCP v0.1.0 is the first production-ready release of the Multi-Agent Code Co
 - **Logging System** - Rotating logs with configurable levels
 - **Error Handling** - 12 custom exception types
 
-#### Memory System (11 Tools)
+#### Memory System (13 Tools)
 - Project creation and management
 - Architectural decision tracking with search
 - Technology stack management
 - Change logging with impact assessment
 - File metadata and dependency tracking
 - Module information queries
+- Project onboarding context
 
 #### Context Management (13 Tools)
 - Multi-agent registration and profiles
@@ -48,6 +49,25 @@ CoordMCP v0.1.0 is the first production-ready release of the Multi-Agent Code Co
 - Rule-based recommendations (no LLM calls)
 - Code structure validation
 - 9 design patterns catalog (MVC, Repository, Service, Factory, Observer, Adapter, CRUD, etc.)
+
+#### Task Management (8 Tools)
+- Task creation and management
+- Task assignment to agents
+- Task status tracking
+- Task dependencies and branching
+- Task completion and deletion
+
+#### Agent Messaging (5 Tools)
+- Direct agent-to-agent messages
+- Broadcast messages to all agents
+- Message read status tracking
+- Message retrieval by agent
+
+#### Health Dashboard (1 Tool)
+- Project health monitoring
+- Task statistics and progress
+- Agent activity overview
+- Actionable recommendations
 
 #### Resources (14 Total)
 - 7 Project resources (overview, decisions, tech-stack, etc.)
@@ -76,7 +96,7 @@ CoordMCP v0.1.0 is the first production-ready release of the Multi-Agent Code Co
 | Metric | Count |
 |--------|-------|
 | **Total Python Files** | 31 |
-| **Total Tools** | 33 |
+| **Total Tools** | 49 |
 | **Total Resources** | 14 |
 | **Total Examples** | 4 |
 | **Test Files** | 8 |
@@ -122,6 +142,9 @@ CoordMCP v0.1.0 is the first production-ready release of the Multi-Agent Code Co
 - Change tracking and audit trails
 - File conflict prevention
 - Decision documentation and search
+- Task management and tracking
+- Agent-to-agent messaging
+- Project health monitoring
 
 ### 🚀 Getting Started
 

@@ -24,11 +24,14 @@ def memory_store(storage_backend):
 
 
 @pytest.fixture
-def sample_project_id(memory_store):
+def sample_project_id(memory_store, fresh_temp_dir):
     """Create and return a sample project ID."""
+    workspace = fresh_temp_dir / "test_project"
+    workspace.mkdir(exist_ok=True)
     return memory_store.create_project(
         project_name="Test Project",
-        description="Test project for unit tests"
+        description="Test project for unit tests",
+        workspace_path=str(workspace)
     )
 
 
@@ -42,11 +45,3 @@ def file_tracker(storage_backend):
 def context_manager(storage_backend, file_tracker):
     """Provide a ContextManager with fresh storage."""
     return ContextManager(storage_backend, file_tracker)
-
-
-@pytest.fixture(autouse=True)
-def mock_get_storage(storage_backend):
-    """Mock get_storage to return the test's storage backend."""
-    with patch('coordmcp.tools.memory_tools.get_storage', return_value=storage_backend):
-        with patch('coordmcp.tools.context_tools.get_storage', return_value=storage_backend):
-            yield storage_backend

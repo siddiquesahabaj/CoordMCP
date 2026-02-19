@@ -1,17 +1,20 @@
 # API Reference
 
-Complete reference for all 34 CoordMCP tools.
+Complete reference for all 49 CoordMCP tools.
 
 ## Overview
 
-CoordMCP provides **34 tools** organized into four categories:
+CoordMCP provides **49 tools** organized into seven categories:
 
 | Category | Count | Purpose |
 |----------|-------|---------|
 | Discovery | 4 | Project discovery and lookup |
-| Memory | 12 | Decisions, tech stack, changes |
+| Memory | 13 | Decisions, tech stack, changes |
 | Context | 13 | Agent registration, file locking |
 | Architecture | 5 | Analysis and recommendations |
+| Task | 8 | Task management and tracking |
+| Message | 5 | Agent-to-agent communication |
+| Health | 1 | Project health dashboard |
 
 ### Flexible Project Lookup
 
@@ -714,6 +717,215 @@ Update project architecture after implementation.
 | `project_id` | string | No | Project ID |
 | `actual_files_created` | array | No | Files created |
 | `actual_files_modified` | array | No | Files modified |
+
+---
+
+## Task Tools (8)
+
+### create_task
+
+Create a new task in a project.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `title` | string | Yes | Task title |
+| `description` | string | No | Task description |
+| `project_id` | string | No | Project ID |
+| `project_name` | string | No | Project name |
+| `workspace_path` | string | No | Workspace path |
+| `priority` | string | No | "critical", "high", "medium", "low" |
+| `related_files` | array | No | Related file paths |
+| `depends_on` | array | No | Task IDs this depends on |
+| `estimated_hours` | float | No | Estimated hours |
+
+---
+
+### get_task
+
+Get task details.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | Yes | Project ID |
+| `task_id` | string | Yes | Task ID |
+
+---
+
+### assign_task
+
+Assign a task to an agent.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | Yes | Project ID |
+| `task_id` | string | Yes | Task ID |
+| `agent_id` | string | Yes | Agent ID |
+| `requested_by_user` | boolean | No | User requested |
+
+---
+
+### update_task_status
+
+Update task status.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | Yes | Project ID |
+| `task_id` | string | Yes | Task ID |
+| `agent_id` | string | Yes | Agent ID |
+| `status` | string | Yes | "pending", "in_progress", "blocked", "completed", "cancelled" |
+| `notes` | string | No | Status notes |
+
+---
+
+### get_project_tasks
+
+Get all tasks for a project.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | No | Project ID |
+| `project_name` | string | No | Project name |
+| `workspace_path` | string | No | Workspace path |
+| `status` | string | No | Filter by status |
+| `assigned_agent_id` | string | No | Filter by agent |
+
+---
+
+### get_my_tasks
+
+Get tasks assigned to an agent.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `agent_id` | string | Yes | Agent ID |
+| `status` | string | No | Filter by status |
+
+---
+
+### complete_task
+
+Mark a task as completed.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | Yes | Project ID |
+| `task_id` | string | Yes | Task ID |
+| `agent_id` | string | Yes | Agent ID |
+| `completion_notes` | string | No | Completion notes |
+
+---
+
+### delete_task
+
+Delete (soft delete) a task.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | Yes | Project ID |
+| `task_id` | string | Yes | Task ID |
+| `agent_id` | string | Yes | Agent ID |
+| `reason` | string | No | Deletion reason |
+
+---
+
+## Message Tools (5)
+
+### send_message
+
+Send a message to another agent.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from_agent_id` | string | Yes | Sender agent ID |
+| `to_agent_id` | string | Yes | Recipient agent ID (or "broadcast") |
+| `project_id` | string | Yes | Project ID |
+| `content` | string | Yes | Message content |
+| `message_type` | string | No | "request", "update", "alert", "question", "review" |
+| `related_task_id` | string | No | Related task ID |
+
+---
+
+### get_messages
+
+Get messages for an agent.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `agent_id` | string | Yes | Agent ID |
+| `project_id` | string | No | Project ID |
+| `project_name` | string | No | Project name |
+| `workspace_path` | string | No | Workspace path |
+| `unread_only` | boolean | No | Only unread messages |
+| `limit` | integer | No | Max results (default: 50) |
+
+---
+
+### get_sent_messages
+
+Get messages sent by an agent.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `agent_id` | string | Yes | Agent ID |
+| `project_id` | string | No | Project ID |
+| `project_name` | string | No | Project name |
+| `workspace_path` | string | No | Workspace path |
+| `limit` | integer | No | Max results (default: 50) |
+
+---
+
+### mark_message_read
+
+Mark a message as read.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `agent_id` | string | Yes | Agent ID |
+| `message_id` | string | Yes | Message ID |
+| `project_id` | string | No | Project ID |
+| `project_name` | string | No | Project name |
+| `workspace_path` | string | No | Workspace path |
+
+---
+
+### broadcast_message
+
+Broadcast a message to all agents in a project.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `from_agent_id` | string | Yes | Sender agent ID |
+| `project_id` | string | Yes | Project ID |
+| `content` | string | Yes | Message content |
+| `message_type` | string | No | "request", "update", "alert", "question", "review" |
+
+---
+
+## Health Tools (1)
+
+### get_project_dashboard
+
+Get comprehensive project health dashboard.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | No | Project ID |
+| `project_name` | string | No | Project name |
+| `workspace_path` | string | No | Workspace path |
+
+**Returns:**
+```json
+{
+  "success": true,
+  "health_score": 85,
+  "health_status": "Healthy",
+  "tasks_summary": { "total": 10, "completed": 7, "in_progress": 2, "blocked": 1 },
+  "agents_summary": { "active": 2, "inactive": 1 },
+  "locks_summary": { "locked": 3, "available": 15 },
+  "recommendations": ["Consider reviewing blocked tasks"]
+}
+```
 
 ---
 

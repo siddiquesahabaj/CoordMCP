@@ -40,7 +40,7 @@ For developers who want to understand or integrate with CoordMCP tools.
 
 | Document | Description |
 |----------|-------------|
-| [API Reference](developer-guide/api-reference.md) | All 34 tools documented |
+| [API Reference](developer-guide/api-reference.md) | All 49 tools documented |
 | [Data Models](developer-guide/data-models.md) | Data structures and storage |
 | [Resources](developer-guide/resources.md) | MCP resources available |
 

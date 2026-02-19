@@ -8,9 +8,10 @@ from uuid import uuid4
 
 from coordmcp.storage.base import StorageBackend
 from coordmcp.context.state import (
-    AgentContext, AgentProfile, CurrentContext, 
+    AgentContext, AgentProfile, CurrentContext, ProjectActivity,
     ContextEntry, SessionLogEntry, AgentType, Priority, OperationType
 )
+from coordmcp.memory.models import SessionSummary, ActivityFeedItem
 from coordmcp.context.file_tracker import FileTracker
 from coordmcp.logger import get_logger
 from coordmcp.errors import AgentNotFoundError
@@ -52,7 +53,7 @@ class ContextManager:
         registry = {}
         for agent_id, agent_data in data["agents"].items():
             try:
-                registry[agent_id] = AgentProfile.parse_obj(agent_data)
+                registry[agent_id] = AgentProfile.model_validate(agent_data)
             except Exception as e:
                 logger.warning(f"Failed to parse agent profile for {agent_id}: {e}")
         
@@ -63,7 +64,7 @@ class ContextManager:
         key = self._get_agent_registry_key()
         
         data = {
-            "agents": {agent_id: profile.dict() for agent_id, profile in registry.items()},
+            "agents": {agent_id: profile.model_dump() for agent_id, profile in registry.items()},
             "updated_at": datetime.now().isoformat()
         }
         
@@ -78,7 +79,7 @@ class ContextManager:
             return None
         
         try:
-            return AgentContext.parse_obj(data)
+            return AgentContext.model_validate(data)
         except Exception as e:
             logger.error(f"Failed to parse agent context for {agent_id}: {e}")
             return None
@@ -86,7 +87,7 @@ class ContextManager:
     def _save_agent_context(self, context: AgentContext) -> bool:
         """Save an agent's context."""
         key = self._get_agent_context_key(context.agent_id)
-        return self.backend.save(key, context.dict())
+        return self.backend.save(key, context.model_dump())
     
     # ==================== Agent Registration ====================
     
@@ -218,7 +219,8 @@ class ContextManager:
         objective: str,
         task_description: str = "",
         priority: str = "medium",
-        current_file: str = ""
+        current_file: str = "",
+        task_id: str = None
     ) -> AgentContext:
         """
         Start a new work context for an agent.
@@ -230,6 +232,7 @@ class ContextManager:
             task_description: Detailed task description
             priority: Priority level (critical, high, medium, low)
             current_file: Current file being worked on
+            task_id: Optional task ID to link this context to
             
         Returns:
             Updated AgentContext
@@ -254,7 +257,8 @@ class ContextManager:
             current_objective=objective,
             task_description=task_description,
             priority=priority_enum,
-            current_file=current_file
+            current_file=current_file,
+            current_task_id=task_id
         )
         
         # Load or create agent context
@@ -272,7 +276,8 @@ class ContextManager:
                 details={
                     "project_id": project_id,
                     "objective": objective,
-                    "priority": priority
+                    "priority": priority,
+                    "task_id": task_id
                 }
             ))
         else:
@@ -289,7 +294,8 @@ class ContextManager:
                 details={
                     "project_id": project_id,
                     "objective": objective,
-                    "priority": priority
+                    "priority": priority,
+                    "task_id": task_id
                 }
             ))
         
@@ -301,6 +307,10 @@ class ContextManager:
         registry = self._load_agent_registry()
         registry[agent_id] = agent_profile
         self._save_agent_registry(registry)
+        
+        # If task_id provided, update the task status
+        if task_id:
+            self._link_context_to_task(agent_id, project_id, task_id)
         
         # Save context
         self._save_agent_context(agent_context)
@@ -337,13 +347,42 @@ class ContextManager:
             except Exception as e:
                 logger.error(f"Error unlocking files for agent {agent_id}: {e}")
         
+        # Calculate session duration
+        duration = agent_context.current_context.get_duration()
+        duration_minutes = int(duration.total_seconds() / 60)
+        
+        # Generate session summary
+        self._generate_and_save_session_summary(
+            agent_id=agent_id,
+            project_id=project_id,
+            agent_context=agent_context,
+            duration_minutes=duration_minutes
+        )
+        
+        # Log activity
+        self._log_session_activity(
+            agent_id=agent_id,
+            project_id=project_id,
+            agent_context=agent_context,
+            duration_minutes=duration_minutes
+        )
+        
+        # Update agent's cross-project history
+        self._update_agent_project_history(agent_id, project_id, duration_minutes)
+        
+        # Complete linked task if exists
+        current_task_id = agent_context.current_context.current_task_id
+        if current_task_id:
+            self._complete_task_on_context_end(agent_id, project_id, current_task_id)
+        
         # Log context end
         agent_context.add_session_log_entry(SessionLogEntry(
             event="context_ended",
             details={
                 "project_id": project_id,
                 "objective": agent_context.current_context.current_objective,
-                "duration_seconds": agent_context.current_context.get_duration().total_seconds()
+                "duration_seconds": duration.total_seconds(),
+                "task_id": current_task_id
             }
         ))
         
@@ -353,7 +392,7 @@ class ContextManager:
         
         self._save_agent_context(agent_context)
         
-        logger.info(f"Agent {agent_id} ended context in project {project_id}")
+        logger.info(f"Agent {agent_id} ended context in project {project_id} (duration: {duration_minutes} min)")
         
         return True
     
@@ -606,3 +645,221 @@ class ContextManager:
             return []
         
         return agent_context.session_log[:limit]
+    
+    # ==================== Session Summary & Activity Methods ====================
+    
+    def _generate_and_save_session_summary(self, agent_id: str, project_id: str, 
+                                           agent_context: AgentContext, 
+                                           duration_minutes: int) -> None:
+        """Generate and save a session summary."""
+        try:
+            # Get project info for project name
+            from coordmcp.memory.json_store import ProjectMemoryStore
+            memory_store = ProjectMemoryStore(self.backend)
+            project_info = memory_store.get_project_info(project_id)
+            project_name = project_info.project_name if project_info else "Unknown Project"
+            
+            # Get agent profile for agent name
+            agent_profile = self.get_agent(agent_id)
+            agent_name = agent_profile.agent_name if agent_profile else "Unknown Agent"
+            
+            # Extract session data
+            current_context = agent_context.current_context
+            if not current_context:
+                return
+            
+            # Get files modified from recent context
+            files_modified = []
+            for entry in agent_context.recent_context:
+                if entry.operation == OperationType.WRITE or entry.operation == OperationType.DELETE:
+                    if entry.file not in files_modified:
+                        files_modified.append(entry.file)
+            
+            # Create session summary
+            summary = SessionSummary(
+                id=str(uuid4()),
+                agent_id=agent_id,
+                project_id=project_id,
+                session_id=agent_context.session_id,
+                duration_minutes=duration_minutes,
+                objective=current_context.current_objective,
+                files_modified=files_modified,
+                summary_text=""
+            )
+            
+            # Generate summary text
+            summary.summary_text = summary.generate_summary_text(agent_name, project_name)
+            
+            # Save summary
+            memory_store.save_session_summary(project_id, summary)
+            logger.info(f"Generated session summary for agent {agent_id}")
+            
+        except Exception as e:
+            logger.error(f"Error generating session summary: {e}")
+    
+    def _log_session_activity(self, agent_id: str, project_id: str,
+                              agent_context: AgentContext, 
+                              duration_minutes: int) -> None:
+        """Log session completion activity."""
+        try:
+            from coordmcp.memory.json_store import ProjectMemoryStore
+            memory_store = ProjectMemoryStore(self.backend)
+            
+            # Get agent name
+            agent_profile = self.get_agent(agent_id)
+            agent_name = agent_profile.agent_name if agent_profile else "Unknown Agent"
+            
+            current_context = agent_context.current_context
+            if not current_context:
+                return
+            
+            # Create activity
+            activity = ActivityFeedItem(
+                id=str(uuid4()),
+                activity_type="session_completed",
+                agent_id=agent_id,
+                agent_name=agent_name,
+                project_id=project_id,
+                summary=f"{agent_name} completed: {current_context.current_objective} ({duration_minutes} min)",
+                related_entity_id=agent_context.session_id,
+                related_entity_type="session"
+            )
+            
+            # Log activity
+            memory_store.log_activity(project_id, activity)
+            logger.debug(f"Logged session activity for agent {agent_id}")
+            
+        except Exception as e:
+            logger.error(f"Error logging session activity: {e}")
+    
+    def _update_agent_project_history(self, agent_id: str, project_id: str,
+                                      duration_minutes: int) -> None:
+        """Update agent's cross-project history."""
+        try:
+            # Get agent profile
+            registry = self._load_agent_registry()
+            agent_profile = registry.get(agent_id)
+            
+            if not agent_profile:
+                return
+            
+            # Update last_project_id
+            agent_profile.last_project_id = project_id
+            
+            # Find or create project activity
+            project_activity = None
+            for activity in agent_profile.cross_project_history:
+                if activity.project_id == project_id:
+                    project_activity = activity
+                    break
+            
+            if project_activity:
+                # Update existing activity
+                project_activity.last_visited = datetime.now()
+                project_activity.total_sessions += 1
+            else:
+                # Get project name
+                from coordmcp.memory.json_store import ProjectMemoryStore
+                memory_store = ProjectMemoryStore(self.backend)
+                project_info = memory_store.get_project_info(project_id)
+                project_name = project_info.project_name if project_info else "Unknown"
+                
+                # Create new project activity
+                project_activity = ProjectActivity(
+                    project_id=project_id,
+                    project_name=project_name,
+                    last_visited=datetime.now(),
+                    total_sessions=1
+                )
+                agent_profile.cross_project_history.append(project_activity)
+            
+            # Save registry
+            self._save_agent_registry(registry)
+            logger.debug(f"Updated project history for agent {agent_id}")
+            
+        except Exception as e:
+            logger.error(f"Error updating agent project history: {e}")
+    
+    def _link_context_to_task(self, agent_id: str, project_id: str, task_id: str) -> None:
+        """Link context to task and update task status."""
+        try:
+            from coordmcp.memory.json_store import ProjectMemoryStore
+            from coordmcp.memory.models import TaskStatus, ActivityFeedItem
+            
+            memory_store = ProjectMemoryStore(self.backend)
+            
+            # Get the task
+            task = memory_store.get_task(project_id, task_id)
+            if not task:
+                logger.warning(f"Task {task_id} not found, cannot link context")
+                return
+            
+            # Update task status to in_progress
+            if task.status == TaskStatus.PENDING:
+                task.status = TaskStatus.IN_PROGRESS
+                task.assigned_agent_id = agent_id
+                task.started_at = datetime.now()
+                memory_store.update_task(project_id, task, agent_id)
+                
+                # Log activity
+                agent_profile = self.get_agent(agent_id)
+                agent_name = agent_profile.agent_name if agent_profile else "Unknown"
+                
+                activity = ActivityFeedItem(
+                    id=str(uuid4()),
+                    activity_type="task_started",
+                    agent_id=agent_id,
+                    agent_name=agent_name,
+                    project_id=project_id,
+                    summary=f"Task '{task.title}' started by {agent_name}",
+                    related_entity_id=task_id,
+                    related_entity_type="task"
+                )
+                memory_store.log_activity(project_id, activity)
+                
+                logger.info(f"Linked context to task {task_id} and started it")
+            
+        except Exception as e:
+            logger.error(f"Error linking context to task: {e}")
+    
+    def _complete_task_on_context_end(self, agent_id: str, project_id: str, task_id: str) -> None:
+        """Complete task when context ends."""
+        try:
+            from coordmcp.memory.json_store import ProjectMemoryStore
+            from coordmcp.memory.models import TaskStatus, ActivityFeedItem
+            
+            memory_store = ProjectMemoryStore(self.backend)
+            
+            # Get the task
+            task = memory_store.get_task(project_id, task_id)
+            if not task:
+                return
+            
+            # Complete the task
+            if task.status == TaskStatus.IN_PROGRESS:
+                task.status = TaskStatus.COMPLETED
+                task.completed_at = datetime.now()
+                if task.started_at:
+                    task.actual_hours = (task.completed_at - task.started_at).total_seconds() / 3600
+                memory_store.update_task(project_id, task, agent_id)
+                
+                # Log activity
+                agent_profile = self.get_agent(agent_id)
+                agent_name = agent_profile.agent_name if agent_profile else "Unknown"
+                
+                activity = ActivityFeedItem(
+                    id=str(uuid4()),
+                    activity_type="task_completed_via_context",
+                    agent_id=agent_id,
+                    agent_name=agent_name,
+                    project_id=project_id,
+                    summary=f"Task '{task.title}' completed (context ended)",
+                    related_entity_id=task_id,
+                    related_entity_type="task"
+                )
+                memory_store.log_activity(project_id, activity)
+                
+                logger.info(f"Task {task_id} completed automatically when context ended")
+            
+        except Exception as e:
+            logger.error(f"Error completing task on context end: {e}")

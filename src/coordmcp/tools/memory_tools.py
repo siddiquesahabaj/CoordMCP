@@ -201,7 +201,7 @@ async def get_project_info(
         
         return {
             "success": True,
-            "project": project_info.dict(),
+            "project": project_info.model_dump(),
             "message": message
         }
     except Exception as e:
@@ -422,7 +422,7 @@ async def get_project_decisions(
         
         return {
             "success": True,
-            "decisions": [d.dict() for d in decisions],
+            "decisions": [d.model_dump() for d in decisions],
             "count": len(decisions)
         }
     except Exception as e:
@@ -505,7 +505,7 @@ async def search_decisions(
         
         return {
             "success": True,
-            "decisions": [d.dict() for d in decisions],
+            "decisions": [d.model_dump() for d in decisions],
             "count": len(decisions)
         }
     except Exception as e:
@@ -902,7 +902,7 @@ async def get_recent_changes(
         
         return {
             "success": True,
-            "changes": [c.dict() for c in changes],
+            "changes": [c.model_dump() for c in changes],
             "count": len(changes)
         }
     except Exception as e:
@@ -1217,8 +1217,8 @@ async def get_module_info(
         
         return {
             "success": True,
-            "module": module.dict() if module else None,
-            "files": [f.dict() for f in files],
+            "module": module.model_dump() if module else None,
+            "files": [f.model_dump() for f in files],
             "file_count": len(files)
         }
     except Exception as e:

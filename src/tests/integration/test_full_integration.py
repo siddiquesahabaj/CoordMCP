@@ -16,7 +16,7 @@ from coordmcp.context.file_tracker import FileTracker
 from coordmcp.architecture.analyzer import ArchitectureAnalyzer
 from coordmcp.architecture.recommender import ArchitectureRecommender
 from coordmcp.storage.json_adapter import JSONStorageBackend
-from coordmcp.memory.models import Decision, Change, TechStackEntry
+from coordmcp.memory.models import Decision, Change, TechStackEntry, ChangeType, ArchitectureImpact
 from coordmcp.config import get_config, Config
 
 
@@ -45,14 +45,17 @@ async def run_integration_test():
         # ========== TEST 1: Project Creation ==========
         print("Test 1: Project Creation")
         try:
+            workspace_path = Path(tmpdir) / "project_workspace"
+            workspace_path.mkdir()
             project_id = memory_store.create_project(
                 project_name="Integration Test Project",
-                description="Testing complete CoordMCP workflow"
+                description="Testing complete CoordMCP workflow",
+                workspace_path=str(workspace_path)
             )
-            print(f"  ✓ Project created: {project_id}")
+            print(f"  [PASS] Project created: {project_id}")
             test_results.append(("Project Creation", True, None))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Error: {e}")
             test_results.append(("Project Creation", False, str(e)))
             return
         
@@ -69,11 +72,11 @@ async def run_integration_test():
                 agent_type="cursor",
                 capabilities=["python", "fastapi", "database"]
             )
-            print(f"  ✓ Agent 1 registered: {agent1_id}")
-            print(f"  ✓ Agent 2 registered: {agent2_id}")
+            print(f"  [PASS] Agent 1 registered: {agent1_id}")
+            print(f"  [PASS] Agent 2 registered: {agent2_id}")
             test_results.append(("Agent Registration", True, None))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Error: {e}")
             test_results.append(("Agent Registration", False, str(e)))
             return
         
@@ -94,11 +97,11 @@ async def run_integration_test():
                 task_description="Create FastAPI routes",
                 priority="high"
             )
-            print(f"  ✓ Context 1 started: {context1.current_context.current_objective}")
-            print(f"  ✓ Context 2 started: {context2.current_context.current_objective}")
+            print(f"  [PASS] Context 1 started: {context1.current_context.current_objective if context1.current_context else 'N/A'}")
+            print(f"  [PASS] Context 2 started: {context2.current_context.current_objective if context2.current_context else 'N/A'}")
             test_results.append(("Context Management", True, None))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Error: {e}")
             test_results.append(("Context Management", False, str(e)))
         
         # ========== TEST 4: File Locking ==========
@@ -116,11 +119,11 @@ async def run_integration_test():
                 files=["src/api/main.py", "src/api/routes.py"],
                 reason="Working on API"
             )
-            print(f"  ✓ Agent 1 locked files: {len(result1['locked_files'])}")
-            print(f"  ✓ Agent 2 locked files: {len(result2['locked_files'])}")
+            print(f"  [PASS] Agent 1 locked files: {len(result1['locked_files'])}")
+            print(f"  [PASS] Agent 2 locked files: {len(result2['locked_files'])}")
             test_results.append(("File Locking", True, None))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Failed: {e}")
             test_results.append(("File Locking", False, str(e)))
         
         # ========== TEST 5: Conflict Detection ==========
@@ -133,19 +136,21 @@ async def run_integration_test():
                     files=["src/components/App.tsx"],
                     reason="Trying to access locked file"
                 )
-                print(f"  ✗ Should have raised FileLockError")
+                print(f"  [FAIL] Should have raised FileLockError")
                 test_results.append(("Conflict Detection", False, "No error raised"))
             except Exception:
-                print(f"  ✓ Correctly detected conflict")
+                print(f"  [PASS] Correctly detected conflict")
                 test_results.append(("Conflict Detection", True, None))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Failed: {e}")
             test_results.append(("Conflict Detection", False, str(e)))
         
         # ========== TEST 6: Decision Management ==========
         print("\nTest 6: Decision Management")
         try:
+            from uuid import uuid4
             decision1 = Decision(
+                id=str(uuid4()),
                 title="Use FastAPI for backend",
                 description="FastAPI provides great performance",
                 rationale="Async support, automatic docs",
@@ -153,6 +158,7 @@ async def run_integration_test():
                 tags=["backend", "framework"]
             )
             decision2 = Decision(
+                id=str(uuid4()),
                 title="Use React for frontend",
                 description="React for UI components",
                 rationale="Component-based, large ecosystem",
@@ -164,10 +170,10 @@ async def run_integration_test():
             memory_store.save_decision(project_id, decision2)
             
             decisions = memory_store.get_all_decisions(project_id)
-            print(f"  ✓ Saved {len(decisions)} decisions")
+            print(f"  [PASS] Saved {len(decisions)} decisions")
             test_results.append(("Decision Management", True, None))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Failed: {e}")
             test_results.append(("Decision Management", False, str(e)))
         
         # ========== TEST 7: Tech Stack ==========
@@ -190,38 +196,41 @@ async def run_integration_test():
             memory_store.update_tech_stack(project_id, entry2)
             
             tech_stack = memory_store.get_tech_stack(project_id)
-            print(f"  ✓ Tech stack updated: {len(tech_stack)} categories")
+            print(f"  [PASS] Tech stack updated: {len(tech_stack)} categories")
             test_results.append(("Tech Stack", True, None))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Failed: {e}")
             test_results.append(("Tech Stack", False, str(e)))
         
         # ========== TEST 8: Change Logging ==========
         print("\nTest 8: Change Logging")
         try:
+            from uuid import uuid4
             change1 = Change(
+                id=str(uuid4()),
                 file_path="src/api/main.py",
-                change_type="create",
+                change_type=ChangeType.CREATE,
                 description="Created main API file",
                 agent_id=agent2_id,
-                architecture_impact="significant"
+                architecture_impact=ArchitectureImpact.SIGNIFICANT
             )
             change2 = Change(
+                id=str(uuid4()),
                 file_path="src/components/App.tsx",
-                change_type="create",
+                change_type=ChangeType.CREATE,
                 description="Created main App component",
                 agent_id=agent1_id,
-                architecture_impact="significant"
+                architecture_impact=ArchitectureImpact.SIGNIFICANT
             )
             
             memory_store.log_change(project_id, change1)
             memory_store.log_change(project_id, change2)
             
             changes = memory_store.get_recent_changes(project_id)
-            print(f"  ✓ Logged {len(changes)} changes")
+            print(f"  [PASS] Logged {len(changes)} changes")
             test_results.append(("Change Logging", True, None))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Failed: {e}")
             test_results.append(("Change Logging", False, str(e)))
         
         # ========== TEST 9: Architecture Analysis ==========
@@ -229,13 +238,13 @@ async def run_integration_test():
         try:
             analysis = analyzer.analyze_project(project_id)
             if analysis["success"]:
-                print(f"  ✓ Architecture analyzed: {analysis['overview']['total_files']} files")
+                print(f"  [PASS] Architecture analyzed: {analysis['overview']['total_files']} files")
                 test_results.append(("Architecture Analysis", True, None))
             else:
-                print(f"  ✗ Analysis failed: {analysis.get('error')}")
+                print(f"  [FAIL] Analysis failed: {analysis.get('error')}")
                 test_results.append(("Architecture Analysis", False, analysis.get('error')))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Failed: {e}")
             test_results.append(("Architecture Analysis", False, str(e)))
         
         # ========== TEST 10: Architecture Recommendation ==========
@@ -248,13 +257,13 @@ async def run_integration_test():
                 implementation_style="modular"
             )
             if recommendation["success"]:
-                print(f"  ✓ Recommendation generated: {recommendation['recommended_pattern']['pattern']}")
+                print(f"  [PASS] Recommendation generated: {recommendation['recommended_pattern']['pattern']}")
                 test_results.append(("Architecture Recommendation", True, None))
             else:
-                print(f"  ✗ Recommendation failed: {recommendation.get('error')}")
+                print(f"  [FAIL] Recommendation failed: {recommendation.get('error')}")
                 test_results.append(("Architecture Recommendation", False, recommendation.get('error')))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Failed: {e}")
             test_results.append(("Architecture Recommendation", False, str(e)))
         
         # ========== TEST 11: Context Switching ==========
@@ -262,24 +271,24 @@ async def run_integration_test():
         try:
             new_context = context_manager.switch_context(
                 agent_id=agent1_id,
-                to_project_id=project_id,
-                to_objective="Fix UI bugs",
+                new_project_id=project_id,
+                new_objective="Fix UI bugs",
                 task_description="Fix styling issues"
             )
-            print(f"  ✓ Context switched: {new_context.current_context.current_objective}")
+            print(f"  [PASS] Context switched: {new_context.current_context.current_objective if new_context.current_context else 'N/A'}")
             test_results.append(("Context Switching", True, None))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Failed: {e}")
             test_results.append(("Context Switching", False, str(e)))
         
         # ========== TEST 12: Agent Registry ==========
         print("\nTest 12: Agent Registry")
         try:
             all_agents = context_manager.get_all_agents()
-            print(f"  ✓ Registry query: {len(all_agents)} agents")
+            print(f"  [PASS] Registry query: {len(all_agents)} agents")
             test_results.append(("Agent Registry", True, None))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Failed: {e}")
             test_results.append(("Agent Registry", False, str(e)))
         
         # ========== TEST 13: Session Cleanup ==========
@@ -287,10 +296,10 @@ async def run_integration_test():
         try:
             context_manager.end_context(agent1_id)
             context_manager.end_context(agent2_id)
-            print(f"  ✓ Contexts ended for both agents")
+            print(f"  [PASS] Contexts ended for both agents")
             test_results.append(("Session Cleanup", True, None))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Failed: {e}")
             test_results.append(("Session Cleanup", False, str(e)))
         
         # ========== TEST 14: File Unlocking ==========
@@ -301,13 +310,13 @@ async def run_integration_test():
             
             locked = file_tracker.get_locked_files(project_id)
             if locked['total_locked'] == 0:
-                print(f"  ✓ All files unlocked")
+                print(f"  [PASS] All files unlocked")
                 test_results.append(("File Unlocking", True, None))
             else:
-                print(f"  ✗ Some files still locked: {locked['total_locked']}")
+                print(f"  [FAIL] Some files still locked: {locked['total_locked']}")
                 test_results.append(("File Unlocking", False, "Files still locked"))
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  [FAIL] Failed: {e}")
             test_results.append(("File Unlocking", False, str(e)))
         
         # ========== SUMMARY ==========
@@ -319,8 +328,8 @@ async def run_integration_test():
         failed = sum(1 for _, success, _ in test_results if not success)
         
         print(f"\nTotal: {len(test_results)} tests")
-        print(f"Passed: {passed} ✓")
-        print(f"Failed: {failed} ✗")
+        print(f"Passed: {passed} [PASS]")
+        print(f"Failed: {failed} [FAIL]")
         print()
         
         if failed > 0:
@@ -331,10 +340,10 @@ async def run_integration_test():
         
         print()
         if passed == len(test_results):
-            print("🎉 All integration tests passed!")
+            print("[SUCCESS] All integration tests passed!")
             return True
         else:
-            print(f"⚠️  {failed} test(s) failed")
+            print(f"[WARNING]  {failed} test(s) failed")
             return False
 
 

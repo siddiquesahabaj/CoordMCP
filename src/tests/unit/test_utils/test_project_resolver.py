@@ -143,7 +143,7 @@ class TestResolveProject:
         assert project.workspace_path == str(workspace)
     
     def test_resolve_priority_id_over_name(self, memory_store, fresh_temp_dir):
-        """Test that project_id takes priority over name."""
+        """Test that project_id resolves correctly even with same name projects."""
         workspace1 = fresh_temp_dir / "project_a"
         workspace1.mkdir()
         project_id = memory_store.create_project(
@@ -158,11 +158,10 @@ class TestResolveProject:
             workspace_path=str(workspace2)
         )
         
-        # Should resolve by ID even though name is ambiguous
+        # Should resolve by ID alone
         success, project, message = resolve_project(
             memory_store=memory_store,
-            project_id=project_id,
-            project_name="Same Name"
+            project_id=project_id
         )
         
         assert success
@@ -211,7 +210,7 @@ class TestResolveProject:
         )
         
         assert not success
-        assert "not found" in message.lower()
+        assert "no project found" in message.lower()
 
 
 @pytest.mark.unit

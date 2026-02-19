@@ -13,6 +13,7 @@ from coordmcp.memory.json_store import ProjectMemoryStore
 from coordmcp.logger import get_logger
 from coordmcp.errors import FileLockError
 from coordmcp.tools.memory_tools import resolve_project_id
+from coordmcp.tools.onboarding_tools import get_project_onboarding_context
 
 logger = get_logger("tools.context")
 
@@ -171,7 +172,7 @@ async def get_agents_list(status: str = "all") -> Dict[str, Any]:
         
         return {
             "success": True,
-            "agents": [a.dict() for a in agents],
+            "agents": [a.model_dump() for a in agents],
             "count": len(agents)
         }
     except Exception as e:
@@ -206,7 +207,7 @@ async def get_agent_profile(agent_id: str) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "agent": agent.dict()
+            "agent": agent.model_dump()
         }
     except Exception as e:
         logger.error(f"Error getting agent profile: {e}")
@@ -227,7 +228,8 @@ async def start_context(
     objective: str = "",
     task_description: str = "",
     priority: str = "medium",
-    current_file: str = ""
+    current_file: str = "",
+    task_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Start a new work context for an agent.
@@ -241,6 +243,7 @@ async def start_context(
         task_description: Detailed task description
         priority: Priority level (critical, high, medium, low)
         current_file: Current file being worked on
+        task_id: Optional task ID to link this context to
         
     Returns:
         Dictionary with context information
@@ -254,6 +257,9 @@ async def start_context(
         
         # By workspace path
         result = await start_context("agent-123", workspace_path="/path/to/project", objective="Fix bug")
+        
+        # With task linkage
+        result = await start_context("agent-123", project_id="proj-456", objective="Fix bug", task_id="task-789")
     """
     try:
         manager = get_context_manager()
@@ -295,12 +301,17 @@ async def start_context(
             objective=objective,
             task_description=task_description,
             priority=priority,
-            current_file=current_file
+            current_file=current_file,
+            task_id=task_id
         )
+        
+        # Get onboarding context automatically
+        onboarding = await get_project_onboarding_context(agent_id, resolved_id)
         
         return {
             "success": True,
-            "context": context.dict(),
+            "context": context.model_dump(),
+            "onboarding": onboarding,
             "message": f"Context started: {objective}"
         }
     except Exception as e:
@@ -346,7 +357,7 @@ async def get_agent_context(agent_id: str) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "context": context.dict()
+            "context": context.model_dump()
         }
     except Exception as e:
         logger.error(f"Error getting agent context: {e}")
@@ -409,7 +420,7 @@ async def switch_context(
         
         return {
             "success": True,
-            "context": context.dict(),
+            "context": context.model_dump(),
             "message": f"Context switched to: {to_objective}"
         }
     except Exception as e:
@@ -650,7 +661,7 @@ async def get_context_history(agent_id: str, limit: int = 10) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "history": [e.dict() for e in entries],
+            "history": [e.model_dump() for e in entries],
             "count": len(entries)
         }
     except Exception as e:
@@ -680,7 +691,7 @@ async def get_session_log(agent_id: str, limit: int = 50) -> Dict[str, Any]:
         
         return {
             "success": True,
-            "log": [e.dict() for e in entries],
+            "log": [e.model_dump() for e in entries],
             "count": len(entries)
         }
     except Exception as e:

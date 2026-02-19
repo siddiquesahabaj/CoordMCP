@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Literal
 from enum import Enum
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 def _normalize_file_path(file_path: str) -> str:
@@ -66,15 +66,17 @@ class CurrentContext(BaseModel):
     priority: Priority = Field(default=Priority.MEDIUM, description="Task priority")
     started_at: datetime = Field(default_factory=datetime.now, description="When this context started")
     estimated_completion: Optional[datetime] = Field(default=None, description="Estimated completion time")
+    current_task_id: Optional[str] = Field(default=None, description="ID of the task being worked on")
     
     class Config:
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
     
-    @validator('estimated_completion')
-    def validate_estimated_completion(cls, v, values):
-        if v and 'started_at' in values and v < values['started_at']:
+    @field_validator('estimated_completion')
+    @classmethod
+    def validate_estimated_completion(cls, v, info):
+        if v and info.data.get('started_at') and v < info.data.get('started_at'):
             raise ValueError("estimated_completion cannot be before started_at")
         return v
     
@@ -87,6 +89,23 @@ class CurrentContext(BaseModel):
     def get_duration(self) -> timedelta:
         """Get how long this context has been active."""
         return datetime.now() - self.started_at
+
+
+class LockRequest(BaseModel):
+    """Represents a pending lock request in the queue."""
+    id: str = Field(..., description="Unique request ID")
+    file_path: str = Field(..., description="Path of the file requested")
+    agent_id: str = Field(..., description="Agent requesting the lock")
+    agent_name: str = Field(..., description="Agent name for display")
+    requested_at: datetime = Field(default_factory=datetime.now, description="When the request was made")
+    reason: str = Field(default="", description="Reason for locking")
+    priority: int = Field(default=0, ge=0, description="Request priority")
+    project_id: str = Field(..., description="Project ID")
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
 
 
 class LockInfo(BaseModel):
@@ -227,6 +246,20 @@ class AgentContext(BaseModel):
         return old_context
 
 
+class ProjectActivity(BaseModel):
+    """Represents an agent's activity in a project."""
+    project_id: str = Field(..., description="Project ID")
+    project_name: str = Field(..., description="Project name")
+    last_visited: datetime = Field(default_factory=datetime.now, description="Last visit timestamp")
+    total_sessions: int = Field(default=0, ge=0, description="Total sessions in this project")
+    key_contributions: List[str] = Field(default_factory=list, description="Key contributions summary")
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
 class AgentProfile(BaseModel):
     """Profile information for an agent (stored in global registry)."""
     agent_id: str = Field(..., description="Unique agent ID")
@@ -238,6 +271,11 @@ class AgentProfile(BaseModel):
     total_sessions: int = Field(default=0, ge=0, description="Total number of sessions")
     projects_involved: List[str] = Field(default_factory=list, description="Projects this agent has worked on")
     status: Literal["active", "inactive", "suspended"] = Field(default="active")
+    
+    # New fields for enhanced agent memory
+    last_project_id: Optional[str] = Field(default=None, description="Last project the agent worked on")
+    cross_project_history: List[ProjectActivity] = Field(default_factory=list, description="History across all projects")
+    typical_objectives: List[str] = Field(default_factory=list, description="Typical objectives this agent handles")
     
     class Config:
         json_encoders = {
