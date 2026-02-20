@@ -41,6 +41,18 @@ class AgentType(str, Enum):
     CUSTOM = "custom"
 
 
+class WorkflowState(str, Enum):
+    """Workflow states for tracking agent progress through CoordMCP workflow."""
+    UNREGISTERED = "unregistered"
+    REGISTERED = "registered"
+    CONTEXT_STARTED = "context_started"
+    FILES_LOCKED = "files_locked"
+    WORKING = "working"
+    CHANGES_LOGGED = "changes_logged"
+    FILES_UNLOCKED = "files_unlocked"
+    CONTEXT_ENDED = "context_ended"
+
+
 class Priority(str, Enum):
     """Priority levels for agent tasks."""
     CRITICAL = "critical"
@@ -186,6 +198,9 @@ class AgentContext(BaseModel):
     locked_files: List[LockInfo] = Field(default_factory=list, description="Files currently locked by this agent")
     recent_context: List[ContextEntry] = Field(default_factory=list, description="Recent file operations (last 50)")
     session_log: List[SessionLogEntry] = Field(default_factory=list, description="Session events (last 100)")
+    
+    workflow_state: WorkflowState = Field(default=WorkflowState.UNREGISTERED, description="Current workflow state")
+    workflow_progress: List[str] = Field(default_factory=list, description="Steps completed in current workflow")
     
     class Config:
         json_encoders = {

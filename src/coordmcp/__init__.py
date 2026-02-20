@@ -4,6 +4,16 @@ CoordMCP - A FastMCP-based Model Context Protocol server for intelligent multi-a
 Provides shared long-term memory, context switching capabilities, and architectural guidance.
 """
 
+import warnings
+
+# Suppress Pydantic v1 deprecation warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="pydantic")
+try:
+    from pydantic import PydanticDeprecatedSince20
+    warnings.filterwarnings("ignore", category=PydanticDeprecatedSince20)
+except ImportError:
+    pass
+
 import sys
 
 if sys.version_info >= (3, 8):

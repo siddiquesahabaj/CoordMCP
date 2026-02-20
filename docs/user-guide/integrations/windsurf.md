@@ -2,6 +2,14 @@
 
 Complete setup guide for using CoordMCP with Windsurf IDE.
 
+## Why Use CoordMCP with Windsurf?
+
+CoordMCP provides Windsurf with:
+- **Long-term memory** - Remembers architectural decisions across sessions
+- **File locking** - Prevents conflicts when multiple agents work on the same project
+- **Architecture guidance** - Recommends design patterns without external API calls
+- **Task tracking** - Manages tasks and agent activities
+
 ## Prerequisites
 
 - Windsurf IDE installed
@@ -27,8 +35,8 @@ Create or edit the Windsurf MCP configuration.
 {
   "mcpServers": {
     "coordmcp": {
-      "command": "python",
-      "args": ["-m", "coordmcp"],
+      "command": "coordmcp",
+      "args": [],
       "env": {
         "COORDMCP_LOG_LEVEL": "INFO"
       }
@@ -37,11 +45,13 @@ Create or edit the Windsurf MCP configuration.
 }
 ```
 
+> **Note:** You can also use `python -m coordmcp` if `coordmcp` is not in your PATH.
+
 ### 3. Restart Windsurf
 
 Close and reopen Windsurf to load the MCP tools.
 
-### 4. Test It
+### 4. Verify Installation
 
 In Windsurf, say:
 
@@ -78,12 +88,40 @@ Just talk to Windsurf normally. CoordMCP works automatically.
 
 ## Configuration Options
 
+### Command Options
+
+**Using coordmcp CLI (recommended):**
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "coordmcp",
+      "args": []
+    }
+  }
+}
+```
+
+**Using Python module:**
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "python",
+      "args": ["-m", "coordmcp"]
+    }
+  }
+}
+```
+
 ### Custom Data Directory
 
 ```json
 {
   "mcpServers": {
     "coordmcp": {
+      "command": "coordmcp",
+      "args": [],
       "env": {
         "COORDMCP_DATA_DIR": "/path/to/custom/data"
       }
@@ -98,6 +136,8 @@ Just talk to Windsurf normally. CoordMCP works automatically.
 {
   "mcpServers": {
     "coordmcp": {
+      "command": "coordmcp",
+      "args": [],
       "env": {
         "COORDMCP_LOG_LEVEL": "DEBUG"
       }
@@ -114,18 +154,40 @@ Just talk to Windsurf normally. CoordMCP works automatically.
 2. Check config location
 3. Verify JSON syntax
 
-### "Python not found"
+### "Command not found"
 
-Use full path:
+If `coordmcp` is not in PATH:
+
 ```json
 {
   "mcpServers": {
     "coordmcp": {
-      "command": "/usr/bin/python3",
+      "command": "/full/path/to/coordmcp",
+      "args": []
+    }
+  }
+}
+```
+
+Or use Python module:
+
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "python",
       "args": ["-m", "coordmcp"]
     }
   }
 }
+```
+
+Find your paths:
+```bash
+which coordmcp    # macOS/Linux
+where coordmcp    # Windows
+which python3     # macOS/Linux
+where python      # Windows
 ```
 
 ## Next Steps

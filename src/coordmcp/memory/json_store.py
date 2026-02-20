@@ -73,7 +73,7 @@ class ProjectMemoryStore:
     
     # ==================== Project Management ====================
     
-    def create_project(self, project_name: str, description: str = "", workspace_path: str = "") -> str:
+    def create_project(self, project_name: str, description: str = "", workspace_path: str = "", project_type: str = "", recommended_workflows: Optional[List[str]] = None) -> str:
         """
         Create a new project.
         
@@ -81,6 +81,8 @@ class ProjectMemoryStore:
             project_name: Name of the project
             description: Project description
             workspace_path: Absolute path to the project workspace directory (required)
+            project_type: Type of project (webapp, library, api, etc.)
+            recommended_workflows: List of recommended workflow names
             
         Returns:
             Project ID
@@ -92,6 +94,8 @@ class ProjectMemoryStore:
             project_name=project_name,
             description=description,
             workspace_path=workspace_path,
+            project_type=project_type,
+            recommended_workflows=recommended_workflows or [],
             created_by="system"
         )
         

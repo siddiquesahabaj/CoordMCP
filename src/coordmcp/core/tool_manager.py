@@ -10,13 +10,15 @@ Usage:
     server = register_all_tools(server)
 """
 
+from typing import Optional, List
+
 from fastmcp import FastMCP
 
 from coordmcp.tools import memory_tools
 from coordmcp.tools import context_tools
 from coordmcp.tools import architecture_tools
 from coordmcp.tools import discovery_tools
-from coordmcp.tools.onboarding_tools import get_project_onboarding_context
+from coordmcp.tools.onboarding_tools import get_project_onboarding_context, get_workflow_guidance, validate_workflow_state, get_system_prompt
 from coordmcp.tools import task_tools
 from coordmcp.tools import message_tools
 from coordmcp.tools import health_tools
@@ -76,7 +78,7 @@ def _register_memory_tools(server: FastMCP) -> None:
     # ==================== Project Tools ====================
     
     @server.tool()
-    async def create_project(project_name: str, workspace_path: str, description: str = ""):
+    async def create_project(project_name: str, workspace_path: str, description: str = "", project_type: str = "", recommended_workflows: Optional[List[str]] = None):
         """
         MANDATORY STEP 1: Create a new project in the memory system before starting any work.
         
@@ -100,15 +102,24 @@ def _register_memory_tools(server: FastMCP) -> None:
             workspace_path: Absolute path to the project workspace directory (required)
                            Example: "/home/user/projects/myapp" or "C:\\Users\\name\\projects\\myapp"
             description: Project description (optional but recommended) - What is this project for?
+            project_type: Type of project - "webapp", "library", "api", "cli", "mobile" (optional)
+            recommended_workflows: List of recommended workflow names (optional)
+                                 Examples: ["Test-first", "Review-then-Commit", "Feature-branch"]
             
         Returns:
             Dictionary with project_id (SAVE THIS - you'll need it for ALL other operations) and success status
             
         Example:
-            >>> result = await create_project("Todo App", "/home/user/projects/todo-app", "A task management application")
+            >>> result = await create_project(
+            ...     project_name="Todo App",
+            ...     workspace_path="/home/user/projects/todo-app",
+            ...     description="A task management application",
+            ...     project_type="webapp",
+            ...     recommended_workflows=["Test-first", "Feature-branch"]
+            ... )
             >>> project_id = result["project_id"]  # SAVE THIS ID!
         """
-        return await memory_tools.create_project(project_name, workspace_path, description)
+        return await memory_tools.create_project(project_name, workspace_path, description, project_type, recommended_workflows)
     
     @server.tool()
     async def get_project_info(
@@ -1114,6 +1125,118 @@ def _register_context_tools(server: FastMCP) -> None:
             - recommended_next_steps: Suggested actions
         """
         return await get_project_onboarding_context(agent_id, project_id)
+    
+    @server.tool()
+    async def get_workflow_guidance_tool(
+        project_id: Optional[str] = None,
+        workflow_name: Optional[str] = None
+    ):
+        """
+        Get phase-by-phase workflow guidance for development tasks.
+        
+        This tool provides structured, step-by-step instructions for working on a project.
+        It combines project-specific workflows with the standard CoordMCP workflow.
+        
+        WHEN TO USE:
+        - At the start of any new task to understand the recommended workflow
+        - When you want to follow best practices for this project
+        - To understand what tools to use and in what order
+        - New agents should always call this to understand the expected workflow
+        
+        AVAILABLE WORKFLOWS:
+        - "test-first": Test-Driven Development (write tests before code)
+        - "feature-branch": Feature branch workflow with code review
+        - "review-then-commit": Peer review before committing
+        - "default": Standard workflow for any task
+        
+        Args:
+            project_id: Optional project ID to get project-specific workflows
+            workflow_name: Optional specific workflow to use (e.g., "test-first", "feature-branch")
+            
+        Returns:
+            Dictionary with workflow guidance including:
+            - workflow_name: The selected workflow
+            - workflow_display_name: Human-readable name
+            - description: What this workflow is for
+            - phases: Ordered list of steps with tool names
+            - project_workflows_available: Workflows defined for this project
+            
+        Example:
+            >>> result = await get_workflow_guidance_tool(
+            ...     project_id="proj-123",
+            ...     workflow_name="test-first"
+            ... )
+            >>> # Returns step-by-step instructions for TDD workflow
+        """
+        return await get_workflow_guidance(project_id, workflow_name)
+    
+    @server.tool()
+    async def validate_workflow_state_tool(agent_id: str):
+        """
+        Validate your workflow state and get warnings about missing steps.
+        
+        This tool checks your current workflow state and provides warnings about
+        any steps you may have missed. Use this to ensure you're following
+        the recommended CoordMCP workflow.
+        
+        WHEN TO USE:
+        - At any point during development to check if you're following the workflow
+        - Before ending a context to make sure you've logged changes
+        - When you want to know what steps to complete next
+        - If you're unsure what to do next
+        
+        WORKFLOW STEPS:
+        1. register_agent() - Register your agent
+        2. start_context() - Start a work context
+        3. lock_files() - Lock files before editing
+        4. Make your code changes
+        5. log_change() - Document your changes
+        6. unlock_files() - Unlock files after editing
+        7. end_context() - End your work session
+        
+        Args:
+            agent_id: Your agent_id from register_agent() (required)
+            
+        Returns:
+            Dictionary with workflow validation including:
+            - current_state: Current workflow state
+            - warnings: List of warnings about missing steps
+            - completed_steps: Steps you've completed
+            - missing_steps: Steps you should complete
+            
+        Example:
+            >>> result = await validate_workflow_state_tool(agent_id="agent-123")
+            >>> # Returns warnings like:
+            >>> # {"warnings": ["You haven't locked any files - lock_files() should be called before editing"]}
+        """
+        return await validate_workflow_state(agent_id)
+    
+    @server.tool()
+    async def get_system_prompt_tool():
+        """
+        Get the CoordMCP system prompt with mandatory workflow instructions.
+        
+        This tool returns the complete system prompt that agents should use
+        as their system prompt for proper CoordMCP integration.
+        
+        WHEN TO USE:
+        - At agent startup to get the system prompt
+        - To understand the mandatory CoordMCP workflow
+        - As reference for best practices
+        
+        This returns a comprehensive guide including:
+        - Mandatory workflow steps (in order)
+        - Tool usage examples
+        - Best practices and quick reference
+        
+        Returns:
+            Dictionary with system_prompt content
+            
+        Example:
+            >>> result = await get_system_prompt_tool()
+            >>> # Returns the full system prompt for use as agent system prompt
+        """
+        return await get_system_prompt()
     
     @server.tool()
     async def get_agent_context(agent_id: str):

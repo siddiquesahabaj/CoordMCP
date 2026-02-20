@@ -2,6 +2,14 @@
 
 Complete setup guide for using CoordMCP with Cursor IDE.
 
+## Why Use CoordMCP with Cursor?
+
+CoordMCP provides Cursor with:
+- **Long-term memory** - Remembers architectural decisions across sessions
+- **File locking** - Prevents conflicts when multiple agents work on the same project
+- **Architecture guidance** - Recommends design patterns without external API calls
+- **Task tracking** - Manages tasks and agent activities
+
 ## Prerequisites
 
 - Cursor IDE installed
@@ -29,8 +37,8 @@ Create or edit `~/.cursor/mcp.json`:
 {
   "mcpServers": {
     "coordmcp": {
-      "command": "python",
-      "args": ["-m", "coordmcp"],
+      "command": "coordmcp",
+      "args": [],
       "env": {
         "COORDMCP_LOG_LEVEL": "INFO"
       }
@@ -47,18 +55,20 @@ Create `.cursor/mcp.json` in your project:
 {
   "mcpServers": {
     "coordmcp": {
-      "command": "python",
-      "args": ["-m", "coordmcp"]
+      "command": "coordmcp",
+      "args": []
     }
   }
 }
 ```
 
+> **Note:** You can also use `python -m coordmcp` if `coordmcp` is not in your PATH.
+
 ### 3. Restart Cursor
 
 Close Cursor completely and reopen it.
 
-### 4. Test It
+### 4. Verify Installation
 
 In Cursor Chat, say:
 
@@ -95,12 +105,40 @@ Just talk to Cursor normally. CoordMCP works automatically.
 
 ## Configuration Options
 
+### Command Options
+
+**Using coordmcp CLI (recommended):**
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "coordmcp",
+      "args": []
+    }
+  }
+}
+```
+
+**Using Python module:**
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "python",
+      "args": ["-m", "coordmcp"]
+    }
+  }
+}
+```
+
 ### Custom Data Directory
 
 ```json
 {
   "mcpServers": {
     "coordmcp": {
+      "command": "coordmcp",
+      "args": [],
       "env": {
         "COORDMCP_DATA_DIR": "/path/to/custom/data"
       }
@@ -115,6 +153,8 @@ Just talk to Cursor normally. CoordMCP works automatically.
 {
   "mcpServers": {
     "coordmcp": {
+      "command": "coordmcp",
+      "args": [],
       "env": {
         "COORDMCP_LOG_LEVEL": "DEBUG"
       }
@@ -131,23 +171,45 @@ Just talk to Cursor normally. CoordMCP works automatically.
 2. Verify JSON syntax: `cat ~/.cursor/mcp.json | python -m json.tool`
 3. Check Cursor console (Developer Tools)
 
-### "Python not found"
+### "Command not found"
 
-Use full path:
+If `coordmcp` is not in PATH:
+
 ```json
 {
   "mcpServers": {
     "coordmcp": {
-      "command": "/usr/bin/python3",
+      "command": "/full/path/to/coordmcp",
+      "args": []
+    }
+  }
+}
+```
+
+Or use Python module:
+
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "python",
       "args": ["-m", "coordmcp"]
     }
   }
 }
 ```
 
+Find your paths:
+```bash
+which coordmcp    # macOS/Linux
+where coordmcp    # Windows
+which python3     # macOS/Linux
+where python      # Windows
+```
+
 ### "Tools not appearing in chat"
 
-1. Verify server: `python -m coordmcp`
+1. Verify server: `coordmcp --version`
 2. Full restart Cursor (Cmd/Ctrl + Q, then reopen)
 3. Check Settings → MCP for "coordmcp"
 

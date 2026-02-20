@@ -9,12 +9,13 @@ from uuid import uuid4
 from coordmcp.storage.base import StorageBackend
 from coordmcp.context.state import (
     AgentContext, AgentProfile, CurrentContext, ProjectActivity,
-    ContextEntry, SessionLogEntry, AgentType, Priority, OperationType
+    ContextEntry, SessionLogEntry, AgentType, Priority, OperationType, WorkflowState
 )
 from coordmcp.memory.models import SessionSummary, ActivityFeedItem
 from coordmcp.context.file_tracker import FileTracker
 from coordmcp.logger import get_logger
 from coordmcp.errors import AgentNotFoundError
+from coordmcp.events import event_manager, EventType
 
 logger = get_logger("context.manager")
 
@@ -308,6 +309,24 @@ class ContextManager:
         registry[agent_id] = agent_profile
         self._save_agent_registry(registry)
         
+        # Update workflow state
+        agent_context.workflow_state = WorkflowState.CONTEXT_STARTED
+        if "context_started" not in agent_context.workflow_progress:
+            agent_context.workflow_progress.append("context_started")
+        
+        # Trigger event (fire and forget)
+        try:
+            import asyncio
+            asyncio.create_task(event_manager.trigger_event(
+                EventType.CONTEXT_STARTED,
+                f"{agent_id}:{project_id}",
+                agent_id=agent_id,
+                project_id=project_id,
+                objective=objective
+            ))
+        except Exception as e:
+            logger.warning(f"Error triggering CONTEXT_STARTED event: {e}")
+        
         # If task_id provided, update the task status
         if task_id:
             self._link_context_to_task(agent_id, project_id, task_id)
@@ -389,6 +408,24 @@ class ContextManager:
         # Clear current context
         agent_context.current_context = None
         agent_context.locked_files = []
+        
+        # Update workflow state
+        agent_context.workflow_state = WorkflowState.CONTEXT_ENDED
+        if "context_ended" not in agent_context.workflow_progress:
+            agent_context.workflow_progress.append("context_ended")
+        
+        # Trigger event
+        try:
+            import asyncio
+            asyncio.create_task(event_manager.trigger_event(
+                EventType.CONTEXT_ENDED,
+                f"{agent_id}:{project_id}",
+                agent_id=agent_id,
+                project_id=project_id,
+                duration_minutes=duration_minutes
+            ))
+        except Exception as e:
+            logger.warning(f"Error triggering CONTEXT_ENDED event: {e}")
         
         self._save_agent_context(agent_context)
         
@@ -537,6 +574,24 @@ class ContextManager:
                     )
                     agent_context.lock_file(lock_info)
                 
+                # Update workflow state
+                agent_context.workflow_state = WorkflowState.FILES_LOCKED
+                if "files_locked" not in agent_context.workflow_progress:
+                    agent_context.workflow_progress.append("files_locked")
+                
+                # Trigger event
+                try:
+                    import asyncio
+                    asyncio.create_task(event_manager.trigger_event(
+                        EventType.FILES_LOCKED,
+                        f"{agent_id}:{project_id}",
+                        agent_id=agent_id,
+                        project_id=project_id,
+                        files=files
+                    ))
+                except Exception as e:
+                    logger.warning(f"Error triggering FILES_LOCKED event: {e}")
+                
                 self._save_agent_context(agent_context)
             
             return result
@@ -576,6 +631,24 @@ class ContextManager:
             if result.get("success"):
                 for file_path in result.get("unlocked_files", []):
                     agent_context.unlock_file(file_path)
+                
+                # Update workflow state
+                agent_context.workflow_state = WorkflowState.FILES_UNLOCKED
+                if "files_unlocked" not in agent_context.workflow_progress:
+                    agent_context.workflow_progress.append("files_unlocked")
+                
+                # Trigger event
+                try:
+                    import asyncio
+                    asyncio.create_task(event_manager.trigger_event(
+                        EventType.FILES_UNLOCKED,
+                        f"{agent_id}:{project_id}",
+                        agent_id=agent_id,
+                        project_id=project_id,
+                        files=files
+                    ))
+                except Exception as e:
+                    logger.warning(f"Error triggering FILES_UNLOCKED event: {e}")
                 
                 self._save_agent_context(agent_context)
             

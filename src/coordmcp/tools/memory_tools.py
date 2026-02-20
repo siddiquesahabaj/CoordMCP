@@ -51,7 +51,9 @@ def resolve_project_id(
 async def create_project(
     project_name: str,
     workspace_path: str,
-    description: str = ""
+    description: str = "",
+    project_type: str = "",
+    recommended_workflows: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
     Create a new project in the memory system.
@@ -69,6 +71,9 @@ async def create_project(
         workspace_path: Absolute path to project workspace directory (required)
                        Example: "/home/user/projects/myapp" or "C:\\Users\\name\\projects\\myapp"
         description: Project description (optional)
+        project_type: Type of project - "webapp", "library", "api", "cli", "mobile" (optional)
+        recommended_workflows: List of recommended workflow names (optional)
+                             Examples: ["Test-first", "Review-then-Commit", "Feature-branch"]
         
     Returns:
         Dictionary with project details:
@@ -77,6 +82,8 @@ async def create_project(
             "project_id": "proj-uuid-123",
             "project_name": "My App",
             "workspace_path": "/home/user/projects/myapp",
+            "project_type": "webapp",
+            "recommended_workflows": ["Test-first"],
             "message": "Project created successfully"
         }
         
@@ -84,7 +91,9 @@ async def create_project(
         result = await create_project(
             project_name="Todo App",
             workspace_path="/home/user/projects/todo-app",
-            description="A task management application"
+            description="A task management application",
+            project_type="webapp",
+            recommended_workflows=["Test-first", "Feature-branch"]
         )
         # Returns project_id for use in other tools
     """
@@ -112,7 +121,9 @@ async def create_project(
         project_id = store.create_project(
             project_name=project_name,
             description=description,
-            workspace_path=normalize_path(workspace_path)
+            workspace_path=normalize_path(workspace_path),
+            project_type=project_type,
+            recommended_workflows=recommended_workflows
         )
         
         return {
@@ -120,6 +131,8 @@ async def create_project(
             "project_id": project_id,
             "project_name": project_name,
             "workspace_path": normalize_path(workspace_path),
+            "project_type": project_type,
+            "recommended_workflows": recommended_workflows or [],
             "message": f"Project '{project_name}' created successfully"
         }
     except Exception as e:

@@ -17,8 +17,28 @@ Environment Variables:
     COORDMCP_LOG_LEVEL: Log level (default: INFO)
 """
 
-import argparse
+import warnings
+
+# Suppress Pydantic deprecation warnings - must be done before imports
+# Use regex pattern to match Pydantic deprecation warnings
+warnings.filterwarnings(
+    "ignore",
+    message=r".*PydanticDeprecated.*",
+    category=DeprecationWarning
+)
+warnings.filterwarnings(
+    "ignore", 
+    message=r".*class-based `config`.*",
+    category=DeprecationWarning
+)
+warnings.filterwarnings(
+    "ignore",
+    message=r".*`json_encoders`.*",
+    category=DeprecationWarning
+)
+
 import sys
+import argparse
 from pathlib import Path
 
 # Add src to path for imports

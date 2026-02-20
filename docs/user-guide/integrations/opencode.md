@@ -2,6 +2,14 @@
 
 Complete setup guide for using CoordMCP with OpenCode.
 
+## Why Use CoordMCP with OpenCode?
+
+CoordMCP provides OpenCode with:
+- **Long-term memory** - Remembers architectural decisions across sessions
+- **File locking** - Prevents conflicts when multiple agents work on the same project
+- **Architecture guidance** - Recommends design patterns without external API calls
+- **Task tracking** - Manages tasks and agent activities
+
 ## Prerequisites
 
 - OpenCode installed and configured
@@ -27,7 +35,7 @@ Create `opencode.jsonc` in your project root:
   "mcp": {
     "coordmcp": {
       "type": "local",
-      "command": ["python", "-m", "coordmcp"],
+      "command": ["coordmcp"],
       "enabled": true,
       "environment": {
         "COORDMCP_LOG_LEVEL": "INFO"
@@ -37,11 +45,13 @@ Create `opencode.jsonc` in your project root:
 }
 ```
 
+> **Note:** You can also use `["python", "-m", "coordmcp"]` if `coordmcp` is not in your PATH.
+
 ### 3. Restart OpenCode
 
 Close and reopen OpenCode to load the MCP tools.
 
-### 4. Test It
+### 4. Verify Installation
 
 Say to OpenCode:
 
@@ -80,12 +90,43 @@ Just talk to OpenCode normally. CoordMCP works automatically.
 
 ## Configuration Options
 
+### Command Options
+
+**Using coordmcp CLI (recommended):**
+```json
+{
+  "mcp": {
+    "coordmcp": {
+      "type": "local",
+      "command": ["coordmcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+**Using Python module:**
+```json
+{
+  "mcp": {
+    "coordmcp": {
+      "type": "local",
+      "command": ["python", "-m", "coordmcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
 ### Custom Data Directory
 
 ```json
 {
   "mcp": {
     "coordmcp": {
+      "type": "local",
+      "command": ["coordmcp"],
+      "enabled": true,
       "environment": {
         "COORDMCP_DATA_DIR": "${workspaceFolder}/.coordmcp/data"
       }
@@ -100,6 +141,9 @@ Just talk to OpenCode normally. CoordMCP works automatically.
 {
   "mcp": {
     "coordmcp": {
+      "type": "local",
+      "command": ["coordmcp"],
+      "enabled": true,
       "environment": {
         "COORDMCP_LOG_LEVEL": "DEBUG"
       }
@@ -121,23 +165,42 @@ tail -f ~/.coordmcp/logs/coordmcp.log
 2. Check config syntax: `cat opencode.jsonc | python -m json.tool`
 3. Restart OpenCode completely
 
-### "Python not found"
+### "Command not found"
 
-Use full Python path:
+If `coordmcp` is not in PATH, use full path or Python module:
+
 ```json
 {
   "mcp": {
     "coordmcp": {
-      "command": ["/full/path/to/python", "-m", "coordmcp"]
+      "type": "local",
+      "command": ["/full/path/to/coordmcp"],
+      "enabled": true
     }
   }
 }
 ```
 
-Find your path:
+Or:
+
+```json
+{
+  "mcp": {
+    "coordmcp": {
+      "type": "local",
+      "command": ["python", "-m", "coordmcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+Find your paths:
 ```bash
-which python    # macOS/Linux
-where python    # Windows
+which coordmcp    # macOS/Linux
+where coordmcp    # Windows
+which python3     # macOS/Linux
+where python      # Windows
 ```
 
 ### "Permission denied on data directory"

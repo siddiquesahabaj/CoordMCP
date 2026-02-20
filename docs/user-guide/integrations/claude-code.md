@@ -2,6 +2,14 @@
 
 Complete setup guide for using CoordMCP with Claude Code CLI.
 
+## Why Use CoordMCP with Claude Code?
+
+CoordMCP provides Claude Code with:
+- **Long-term memory** - Remembers architectural decisions across sessions
+- **File locking** - Prevents conflicts when multiple agents work on the same project
+- **Architecture guidance** - Recommends design patterns without external API calls
+- **Task tracking** - Manages tasks and agent activities
+
 ## Prerequisites
 
 - Claude Code CLI installed
@@ -25,8 +33,8 @@ Create or edit `claude.json` in your project root:
 {
   "mcpServers": {
     "coordmcp": {
-      "command": "python",
-      "args": ["-m", "coordmcp"],
+      "command": "coordmcp",
+      "args": [],
       "env": {
         "COORDMCP_LOG_LEVEL": "INFO"
       }
@@ -35,11 +43,13 @@ Create or edit `claude.json` in your project root:
 }
 ```
 
+> **Note:** You can also use `python -m coordmcp` if `coordmcp` is not in your PATH.
+
 ### 3. Restart Claude Code
 
 Restart the Claude Code session to load the MCP tools.
 
-### 4. Test It
+### 4. Verify Installation
 
 In Claude Code, say:
 
@@ -76,12 +86,40 @@ Just talk to Claude Code normally. CoordMCP works automatically.
 
 ## Configuration Options
 
+### Command Options
+
+**Using coordmcp CLI (recommended):**
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "coordmcp",
+      "args": []
+    }
+  }
+}
+```
+
+**Using Python module:**
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "python",
+      "args": ["-m", "coordmcp"]
+    }
+  }
+}
+```
+
 ### Custom Data Directory
 
 ```json
 {
   "mcpServers": {
     "coordmcp": {
+      "command": "coordmcp",
+      "args": [],
       "env": {
         "COORDMCP_DATA_DIR": "/path/to/custom/data"
       }
@@ -96,6 +134,8 @@ Just talk to Claude Code normally. CoordMCP works automatically.
 {
   "mcpServers": {
     "coordmcp": {
+      "command": "coordmcp",
+      "args": [],
       "env": {
         "COORDMCP_LOG_LEVEL": "DEBUG"
       }
@@ -110,20 +150,42 @@ Just talk to Claude Code normally. CoordMCP works automatically.
 
 1. Verify installation: `coordmcp --version`
 2. Check config location and syntax
-3. Ensure Python is in PATH
+3. Ensure coordmcp is in PATH
 
-### "Python not found"
+### "Command not found"
 
-Use full path:
+If `coordmcp` is not in PATH:
+
 ```json
 {
   "mcpServers": {
     "coordmcp": {
-      "command": "/usr/bin/python3",
+      "command": "/full/path/to/coordmcp",
+      "args": []
+    }
+  }
+}
+```
+
+Or use Python module:
+
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "python",
       "args": ["-m", "coordmcp"]
     }
   }
 }
+```
+
+Find your paths:
+```bash
+which coordmcp    # macOS/Linux
+where coordmcp    # Windows
+which python3     # macOS/Linux
+where python      # Windows
 ```
 
 ## Next Steps

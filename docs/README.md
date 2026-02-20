@@ -6,10 +6,13 @@ Welcome to the CoordMCP documentation. Choose your path below.
 
 | Goal | Start Here |
 |------|------------|
-| Use CoordMCP with my AI agent | [User Guide](user-guide/what-is-coordmcp.md) |
+| Use CoordMCP with my AI agent | [Integrations Overview](user-guide/integrations.md) |
+| Connect to a specific agent (Cursor, Claude, etc.) | [Integrations](user-guide/integrations.md) |
+| Install and configure CoordMCP | [Installation](user-guide/installation.md) |
 | Understand the tools and API | [Developer Guide](developer-guide/api-reference.md) |
 | Contribute to CoordMCP | [Contributor Guide](contributor-guide/architecture.md) |
 | Fix a problem | [Troubleshooting](reference/troubleshooting.md) |
+| Get answers | [FAQ](reference/faq.md) |
 
 ---
 
@@ -31,6 +34,8 @@ For end users who want to use CoordMCP with their AI coding agent.
 | [Cursor](user-guide/integrations/cursor.md) | Setup for Cursor IDE |
 | [Claude Code](user-guide/integrations/claude-code.md) | Setup for Claude Code |
 | [Windsurf](user-guide/integrations/windsurf.md) | Setup for Windsurf |
+| [Antigravity](user-guide/integrations/antigravity.md) | Setup for Antigravity IDE |
+| [Overview](user-guide/integrations.md) | All integrations in one place |
 
 ---
 
@@ -75,6 +80,7 @@ Quick lookup documentation.
 |----------|-------------|
 | [Troubleshooting](reference/troubleshooting.md) | Common issues and solutions |
 | [Configuration](reference/configuration.md) | All configuration options |
+| [FAQ](reference/faq.md) | Frequently asked questions |
 | [Changelog](../CHANGELOG.md) | Version history |
 
 ---

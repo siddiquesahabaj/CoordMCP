@@ -67,21 +67,41 @@ coordmcp --version
 
 ### Configure Your Agent
 
-For OpenCode, create `opencode.jsonc`:
+**Option 1: Using coordmcp CLI (recommended)**
+
+For most agents, add to your config file:
 
 ```json
 {
-  "mcp": {
+  "mcpServers": {
     "coordmcp": {
-      "type": "local",
-      "command": ["python", "-m", "coordmcp"],
-      "enabled": true
+      "command": "coordmcp",
+      "args": [],
+      "env": {
+        "COORDMCP_LOG_LEVEL": "INFO"
+      }
     }
   }
 }
 ```
 
-See [integrations](docs/user-guide/integrations/) for Cursor, Claude Code, and Windsurf.
+**Option 2: Using Python module**
+
+```json
+{
+  "mcpServers": {
+    "coordmcp": {
+      "command": "python",
+      "args": ["-m", "coordmcp"],
+      "env": {
+        "COORDMCP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+See [integrations](docs/user-guide/integrations/) for specific setup instructions for each agent.
 
 ### Test It
 
@@ -109,6 +129,7 @@ Restart your AI agent and say:
 - [Cursor](docs/user-guide/integrations/cursor.md)
 - [Claude Code](docs/user-guide/integrations/claude-code.md)
 - [Windsurf](docs/user-guide/integrations/windsurf.md)
+- [Antigravity](docs/user-guide/integrations/antigravity.md)
 
 ### Developer Guide
 
