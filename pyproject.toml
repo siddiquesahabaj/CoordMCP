@@ -62,7 +62,6 @@ python_functions = ["test_*"]
 asyncio_mode = "auto"
 timeout = 60  # 60 second timeout for all tests
 filterwarnings = [
-    "ignore::pydantic.PydanticDeprecatedSince20",
     "ignore::RuntimeWarning",
     "ignore::pytest.PytestUnknownMarkWarning",
 ]

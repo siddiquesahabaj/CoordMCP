@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Literal
 from enum import Enum
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 def _normalize_file_path(file_path: str) -> str:
@@ -80,10 +80,7 @@ class CurrentContext(BaseModel):
     estimated_completion: Optional[datetime] = Field(default=None, description="Estimated completion time")
     current_task_id: Optional[str] = Field(default=None, description="ID of the task being worked on")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
     
     @field_validator('estimated_completion')
     @classmethod
@@ -114,10 +111,7 @@ class LockRequest(BaseModel):
     priority: int = Field(default=0, ge=0, description="Request priority")
     project_id: str = Field(..., description="Project ID")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
 
 
 class LockInfo(BaseModel):
@@ -130,10 +124,7 @@ class LockInfo(BaseModel):
     lock_scope: str = Field(default="file", description="Scope: file, directory, module, or project")
     priority: int = Field(default=0, ge=0, description="Lock priority (higher can preempt lower)")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
     
     def is_stale(self, timeout_hours: int = 24) -> bool:
         """Check if the lock is stale (older than timeout)."""
@@ -168,10 +159,7 @@ class ContextEntry(BaseModel):
     operation: OperationType = Field(..., description="Type of operation")
     summary: str = Field(default="", description="Brief summary of what was done")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
 
 
 class SessionLogEntry(BaseModel):
@@ -180,10 +168,7 @@ class SessionLogEntry(BaseModel):
     event: str = Field(..., description="Event type")
     details: Dict = Field(default_factory=dict, description="Event details")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
 
 
 class AgentContext(BaseModel):
@@ -202,10 +187,7 @@ class AgentContext(BaseModel):
     workflow_state: WorkflowState = Field(default=WorkflowState.UNREGISTERED, description="Current workflow state")
     workflow_progress: List[str] = Field(default_factory=list, description="Steps completed in current workflow")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
     
     def add_context_entry(self, entry: ContextEntry, max_entries: int = 50):
         """Add a context entry, keeping only the last N entries."""
@@ -269,10 +251,7 @@ class ProjectActivity(BaseModel):
     total_sessions: int = Field(default=0, ge=0, description="Total sessions in this project")
     key_contributions: List[str] = Field(default_factory=list, description="Key contributions summary")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
 
 
 class AgentProfile(BaseModel):
@@ -292,10 +271,7 @@ class AgentProfile(BaseModel):
     cross_project_history: List[ProjectActivity] = Field(default_factory=list, description="History across all projects")
     typical_objectives: List[str] = Field(default_factory=list, description="Typical objectives this agent handles")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
     
     def mark_active(self):
         """Update last_active timestamp."""
@@ -323,10 +299,7 @@ class LockConflict(BaseModel):
     reason: str
     expected_unlock_time: Optional[datetime] = None
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
 
 
 class ContextSummary(BaseModel):

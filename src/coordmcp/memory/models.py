@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Literal, Any, Set
 from enum import Enum
 import re
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 # Schema Versions - bump when making breaking changes
@@ -82,10 +82,7 @@ class BaseEntity(BaseModel):
     deleted_at: Optional[datetime] = Field(default=None, description="When this was soft deleted")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Extensible metadata")
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
     
     def touch(self, agent_id: str = ""):
         """Update timestamps and version."""
@@ -181,10 +178,7 @@ class DecisionIndex(BaseModel):
     by_word: Dict[str, List[str]] = Field(default_factory=dict)
     last_updated: datetime = Field(default_factory=datetime.now)
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
     
     def add_decision(self, decision: Decision):
         """Add a decision to all indexes."""
@@ -268,10 +262,7 @@ class TechStackEntry(BaseModel):
     added_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
 
 
 class ArchitectureModule(BaseModel):
@@ -315,10 +306,7 @@ class ChangeIndex(BaseModel):
     by_decision: Dict[str, List[str]] = Field(default_factory=dict, description="decision_id -> change_ids")
     last_updated: datetime = Field(default_factory=datetime.now)
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
     
     def add_change(self, change: Change):
         """Add a change to all indexes."""
@@ -436,11 +424,7 @@ class FileMetadataIndex(BaseModel):
     dependency_graph: Dict[str, Set[str]] = Field(default_factory=dict)
     last_updated: datetime = Field(default_factory=datetime.now)
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            set: lambda v: list(v)
-        }
+    model_config = ConfigDict()
     
     def model_dump(self, **kwargs):
         """Override model_dump to properly serialize sets."""
@@ -586,10 +570,7 @@ class DataContainer(BaseModel):
     last_modified: datetime = Field(default_factory=datetime.now)
     data: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict()
     
     def migrate_if_needed(self) -> bool:
         """Migrate data if schema version is outdated."""
