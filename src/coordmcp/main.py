@@ -24,6 +24,12 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Handle --version early before importing heavy modules
+if "--version" in sys.argv:
+    from coordmcp import __version__
+    print(f"coordmcp {__version__}")
+    sys.exit(0)
+
 from coordmcp import __version__
 from coordmcp.core.server import create_server
 from coordmcp.core.tool_manager import register_all_tools

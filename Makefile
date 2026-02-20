@@ -1,18 +1,19 @@
 # CoordMCP Makefile
 # Development commands for CoordMCP
 # Works on Unix-like systems (Linux, macOS, WSL)
-# For Windows native, use: python scripts/cleanup.py
 
 .PHONY: help install dev test test-unit test-integration test-all clean build release lint format docs
 
 # Detect OS
 ifeq ($(OS),Windows_NT)
     PYTHON = python
+    PYTEST = pytest
     RM = del /Q
     RMDIR = rmdir /S /Q
     SEP = \
 else
     PYTHON = python3
+    PYTEST = pytest
     RM = rm -f
     RMDIR = rm -rf
     SEP = /
@@ -47,8 +48,8 @@ help:
 	@echo "  make pypi-release - Upload to Production PyPI"
 	@echo ""
 	@echo "Platform-specific:"
-	@echo "  Windows: Use 'python scripts/cleanup.py' for cleanup"
-	@echo "  Unix:    Use 'make clean' or 'bash scripts/cleanup.sh'"
+	@echo "  Windows: Use 'make clean' or run Python cleanup manually"
+	@echo "  Unix:    Use 'make clean'"
 
 # Setup
 install:
@@ -81,8 +82,14 @@ run-dev:
 
 # Cross-platform clean
 clean:
-	@echo "Running cross-platform cleanup..."
-	$(PYTHON) scripts/cleanup.py
+	@echo "Cleaning build artifacts..."
+	$(RM) -rf build/ dist/ *.egg-info/
+	$(RM) -rf src/coordmcp.egg-info/
+	@find . -type d -name "__pycache__" -exec $(RMDIR) {} + 2>/dev/null || true
+	@find . -name "*.pyc" -delete 2>/dev/null || true
+	@find . -name "*.pyo" -delete 2>/dev/null || true
+	@$(RMDIR) .pytest_cache 2>/dev/null || true
+	@echo "Clean complete."
 
 # Build package
 build: clean
@@ -93,7 +100,6 @@ build: clean
 # Verify build
 verify:
 	@echo "Verifying package..."
-	$(PYTHON) scripts/cleanup.py --check
 	@echo ""
 	@echo "Package contents:"
 	ls -la dist/
@@ -179,7 +185,6 @@ windows-help:
 	@echo "For Windows users:"
 	@echo "  Use PowerShell or CMD with Python commands:"
 	@echo "  python -m coordmcp.main"
-	@echo "  python scripts/cleanup.py"
 	@echo "  python -m build"
 	@echo ""
 	@echo "Or use Git Bash/WSL to run Makefile commands"

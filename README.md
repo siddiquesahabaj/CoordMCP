@@ -191,9 +191,3 @@ python -m pytest src/tests/ -v
 ## License
 
 MIT License - see [LICENSE](LICENSE).
-
-## Support
-
-- Email: support@coordmcp.dev
-- Discord: [Join our community](https://discord.gg/coordmcp)
-- Issues: [GitHub Issues](https://github.com/yourusername/coordmcp/issues)

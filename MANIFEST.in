@@ -3,7 +3,6 @@ include LICENSE
 include CHANGELOG.md
 include SECURITY.md
 include CONTRIBUTING.md
-include QUICK_REFERENCE.md
 include SYSTEM_PROMPT.md
 recursive-include src/coordmcp *.py
 
@@ -11,7 +10,6 @@ recursive-include src/coordmcp *.py
 exclude docs/**
 exclude tests/**
 exclude .github/**
-exclude scripts/**
 exclude examples/**
 
 # Exclude files
@@ -19,7 +17,6 @@ exclude .gitignore
 exclude .env
 exclude .env.example
 exclude Makefile
-exclude opencode-config.jsonc
 
 # Exclude Python cache
 exclude venv/**

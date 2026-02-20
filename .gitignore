@@ -42,3 +42,4 @@ cleanup_data.py
 scripts/
 
 src/coordmcp/_version.py
+guide.md
