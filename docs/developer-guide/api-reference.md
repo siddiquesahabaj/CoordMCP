@@ -1,20 +1,21 @@
 # API Reference
 
-Complete reference for all 49 CoordMCP tools.
+Complete reference for all 52 CoordMCP tools.
 
 ## Overview
 
-CoordMCP provides **49 tools** organized into seven categories:
+CoordMCP provides **52 tools** organized into eight categories:
 
 | Category | Count | Purpose |
 |----------|-------|---------|
 | Discovery | 4 | Project discovery and lookup |
-| Memory | 13 | Decisions, tech stack, changes |
+| Memory | 12 | Decisions, tech stack, changes |
 | Context | 13 | Agent registration, file locking |
 | Architecture | 5 | Analysis and recommendations |
 | Task | 8 | Task management and tracking |
 | Message | 5 | Agent-to-agent communication |
 | Health | 1 | Project health dashboard |
+| Onboarding | 4 | Context, workflow, validation |
 
 ### Flexible Project Lookup
 
@@ -929,6 +930,154 @@ Get comprehensive project health dashboard.
 
 ---
 
+---
+
+## Onboarding Tools (4)
+
+### get_project_onboarding_context
+
+Get comprehensive onboarding context when an agent enters a project. Returns a complete "situation report" including project info, recent activity, active agents, key decisions, and recommendations.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `agent_id` | string | Yes | Agent ID |
+| `project_id` | string | Yes | Project ID |
+
+**Natural Language Example:**
+> "Give me the onboarding context for this project"
+
+**Behind the Scenes:**
+```
+get_project_onboarding_context(agent_id="agent-123", project_id="proj-456")
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "project_info": {
+    "project_name": "My App",
+    "tech_stack": [...],
+    "architecture": {...}
+  },
+  "agent_context": {
+    "is_returning": true,
+    "previous_sessions_in_project": 5
+  },
+  "active_agents": [...],
+  "recent_changes": [...],
+  "key_decisions": [...],
+  "locked_files": [...],
+  "recommended_next_steps": [
+    "Review recent changes to understand current state",
+    "There are 3 pending task(s) available to work on"
+  ]
+}
+```
+
+---
+
+### get_workflow_guidance
+
+Get phase-by-phase workflow guidance for working on a project. Provides structured, step-by-step instructions including required tools and their order.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_id` | string | No | Project ID for project-specific workflows |
+| `workflow_name` | string | No | Specific workflow (test-first, feature-branch, review-then-commit) |
+
+**Natural Language Example:**
+> "What workflow should I follow for this project?"
+
+**Behind the Scenes:**
+```
+get_workflow_guidance(project_id="proj-123", workflow_name="test-first")
+```
+
+**Available Workflows:**
+
+| Workflow | Description |
+|----------|-------------|
+| `default` | Standard development workflow |
+| `test-first` | Write tests before implementing |
+| `feature-branch` | Work on feature branches with review |
+| `review-then-commit` | Peer review before committing |
+
+**Returns:**
+```json
+{
+  "success": true,
+  "workflow_name": "test-first",
+  "workflow_display_name": "Test-First Development",
+  "description": "Write tests before implementing code",
+  "phases": [
+    {"step": 1, "action": "register_agent", "description": "Register your agent identity"},
+    {"step": 2, "action": "start_context", "description": "Start a work context"},
+    {"step": 3, "action": "create_task", "description": "Create a task for the feature"},
+    ...
+  ]
+}
+```
+
+---
+
+### validate_workflow_state
+
+Validate agent's workflow state and return warnings for missing steps. Checks if the agent has followed the required workflow steps.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `agent_id` | string | Yes | Agent ID to validate |
+
+**Natural Language Example:**
+> "Did I miss any workflow steps?"
+
+**Behind the Scenes:**
+```
+validate_workflow_state(agent_id="agent-123")
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "current_state": "working",
+  "warnings": [
+    "⚠️ You haven't locked any files - lock_files() should be called before editing"
+  ],
+  "completed_steps": ["register_agent", "start_context"],
+  "missing_steps": ["lock_files", "make_changes", "log_change", "unlock_files", "end_context"],
+  "has_active_context": true
+}
+```
+
+---
+
+### get_system_prompt
+
+Get the CoordMCP system prompt with mandatory workflow instructions. This returns the complete system prompt that agents should use for proper CoordMCP integration.
+
+**Parameters:** None
+
+**Natural Language Example:**
+> "Show me the system prompt for CoordMCP"
+
+**Behind the Scenes:**
+```
+get_system_prompt()
+```
+
+**Returns:**
+```json
+{
+  "success": true,
+  "system_prompt": "# CoordMCP System Prompt\n\nYou are an intelligent coding assistant...",
+  "version": "1.0.0"
+}
+```
+
+---
+
 ## Error Types
 
 | Error Type | Description | Solution |
@@ -946,3 +1095,4 @@ Get comprehensive project health dashboard.
 - [Resources](resources.md) - MCP resources available
 - [Data Models](data-models.md) - Data structures
 - [Examples](examples/) - Usage examples
+- [Onboarding Tools Guide](onboarding-tools.md) - Detailed onboarding documentation

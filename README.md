@@ -116,6 +116,7 @@ Restart your AI agent and say:
 | **End Users** | [User Guide](docs/user-guide/what-is-coordmcp.md) |
 | **Developers** | [API Reference](docs/developer-guide/api-reference.md) |
 | **Contributors** | [Contributor Guide](docs/contributor-guide/architecture.md) |
+| **Architecture Decisions** | [ADRs](docs/adr/0001-record-architecture-decisions.md) |
 
 ### User Guide
 
@@ -133,7 +134,7 @@ Restart your AI agent and say:
 
 ### Developer Guide
 
-- [API Reference](docs/developer-guide/api-reference.md) - All 49 tools
+- [API Reference](docs/developer-guide/api-reference.md) - All 52 tools
 - [Data Models](docs/developer-guide/data-models.md) - Data structures
 - [Examples](docs/developer-guide/examples/) - Usage examples
 
@@ -148,6 +149,7 @@ Restart your AI agent and say:
 
 - [Troubleshooting](docs/reference/troubleshooting.md) - Common issues
 - [Configuration](docs/reference/configuration.md) - All options
+- [Architecture Decision Records](docs/adr/) - Design decisions
 
 ## Features
 

@@ -9,25 +9,25 @@ System architecture and design of CoordMCP.
 │         EXTERNAL AGENTS                       │
 │  (OpenCode, Cursor, Claude Code, Windsurf)   │
 └──────────┬───────────────────────────────────┘
-           │ FastMCP Protocol (stdio)
+            │ FastMCP Protocol (stdio)
 ┌──────────▼───────────────────────────────────┐
 │   FastMCP SERVER (main.py)                    │
-│   ├── Tool Manager (34 tools)                 │
+│   ├── Tool Manager (52 tools)                 │
 │   └── Resource Manager (14 resources)         │
 └──────────┬───────────────────────────────────┘
-           │
+            │
 ┌──────────▼───────────────────────────────────┐
 │   BUSINESS LOGIC                              │
 │   ├── Memory System (json_store.py)           │
 │   ├── Context System (manager.py)             │
 │   └── Architecture System (analyzer.py)       │
 └──────────┬───────────────────────────────────┘
-           │
+            │
 ┌──────────▼───────────────────────────────────┐
 │   STORAGE ABSTRACTION                         │
 │   └── JSONStorageBackend (json_adapter.py)    │
 └──────────┬───────────────────────────────────┘
-           │
+            │
 ┌──────────▼───────────────────────────────────┐
 │   DATA STORAGE (~/.coordmcp/data)             │
 │   ├── memory/{project_id}/                    │
@@ -51,7 +51,7 @@ Registers and dispatches tool calls.
 
 - **Location:** `src/coordmcp/core/tool_manager.py`
 - **Tools:** `src/coordmcp/tools/`
-- **Count:** 34 tools across 4 categories
+- **Count:** 52 tools across 8 categories
 
 ### Resource Manager
 
@@ -203,7 +203,11 @@ src/coordmcp/
 │   ├── discovery_tools.py    # 4 tools
 │   ├── memory_tools.py       # 12 tools
 │   ├── context_tools.py      # 13 tools
-│   └── architecture_tools.py # 5 tools
+│   ├── architecture_tools.py # 5 tools
+│   ├── task_tools.py         # 8 tools
+│   ├── message_tools.py      # 5 tools
+│   ├── health_tools.py       # 1 tool
+│   └── onboarding_tools.py   # 4 tools
 │
 ├── resources/
 │   ├── project_resources.py

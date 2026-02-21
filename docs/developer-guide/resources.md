@@ -1,12 +1,18 @@
 # MCP Resources
 
-CoordMCP provides read-only resources via the Model Context Protocol.
+CoordMCP provides 14 read-only resources via the Model Context Protocol.
 
 ## Overview
 
 Resources provide direct access to CoordMCP data without requiring tool calls. They're useful for reading information quickly.
 
-## Project Resources
+| Category | Count | Purpose |
+|----------|-------|---------|
+| Project | 7 | Project information and data |
+| Agent | 5 | Agent profiles and activity |
+| Architecture | 2 | Design patterns |
+
+## Project Resources (7)
 
 ### project://{project_id}
 
@@ -84,7 +90,7 @@ Get detailed module information.
 
 ---
 
-## Agent Resources
+## Agent Resources (5)
 
 ### agent://{agent_id}
 
@@ -135,7 +141,7 @@ Get all registered agents.
 
 ---
 
-## Architecture Resources
+## Architecture Resources (2)
 
 ### design-patterns://list
 

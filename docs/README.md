@@ -45,7 +45,7 @@ For developers who want to understand or integrate with CoordMCP tools.
 
 | Document | Description |
 |----------|-------------|
-| [API Reference](developer-guide/api-reference.md) | All 49 tools documented |
+| [API Reference](developer-guide/api-reference.md) | All 52 tools documented |
 | [Data Models](developer-guide/data-models.md) | Data structures and storage |
 | [Resources](developer-guide/resources.md) | MCP resources available |
 
@@ -82,6 +82,20 @@ Quick lookup documentation.
 | [Configuration](reference/configuration.md) | All configuration options |
 | [FAQ](reference/faq.md) | Frequently asked questions |
 | [Changelog](../CHANGELOG.md) | Version history |
+
+---
+
+## Architecture Decisions
+
+Architecture Decision Records (ADRs) document key design choices.
+
+| Document | Description |
+|----------|-------------|
+| [ADR Index](adr/0001-record-architecture-decisions.md) | ADR template and index |
+| [MCP Protocol Choice](adr/0002-mcp-protocol-choice.md) | Why we chose MCP/FastMCP |
+| [JSON Storage Backend](adr/0003-json-storage-backend.md) | Why we use JSON for storage |
+| [Rule-Based Architecture](adr/0004-rule-based-architecture.md) | Why no LLM calls |
+| [File Locking Strategy](adr/0005-file-locking-strategy.md) | How we prevent conflicts |
 
 ---
 

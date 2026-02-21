@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Documentation
+- **AGENTS.md** - Instructions for AI coding assistants working on CoordMCP
+- **Architecture Decision Records (ADRs)** - 5 ADRs documenting key design decisions
+  - ADR-0001: Record Architecture Decisions (template and index)
+  - ADR-0002: MCP Protocol Choice
+  - ADR-0003: JSON Storage Backend
+  - ADR-0004: Rule-Based Architecture Analysis
+  - ADR-0005: File Locking Strategy
+- **CLI Reference Guide** - Command-line interface documentation
+- **Onboarding Tools Documentation** - Detailed guide for onboarding and workflow tools
+
+### Changed
+
+#### Documentation
+- Updated API Reference with correct tool count (52 tools, not 49)
+- Added Onboarding Tools section (4 new tools documented)
+- Updated Data Models documentation with Task, Message, Activity, and Session models
+- Updated Contributor Architecture guide with correct tool counts
+- Added ADR links to README and docs index
+- Updated docs/README.md with ADR section
+
 ### Planned
 - Enhanced plugin system with dynamic loading
 - Additional design patterns
